@@ -6,11 +6,24 @@ import { success, error } from "../utils/response.js";
 /**
  * Create Doctor Profile
  */
-export const createDoctor = async (req, res) => {
+export const upsertDoctor = async (req, res) => {
   try {
     const { specialty, bio, years_of_experience } = req.body;
 
-    const doctor = await Doctor.create({
+    let doctor = await Doctor.findOne({ user_id: req.user.id });
+
+    if (doctor) {
+      // Update existing doctor
+      doctor.specialty = specialty;
+      doctor.bio = bio;
+      doctor.years_of_experience = years_of_experience;
+
+      await doctor.save();
+      return success(res, { doctor }, "Doctor profile updated successfully");
+    }
+
+    // Create new doctor
+    doctor = await Doctor.create({
       user_id: req.user.id,
       specialty,
       bio,

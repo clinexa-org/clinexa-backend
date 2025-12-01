@@ -2,7 +2,7 @@ import express from "express";
 import { auth } from "../middleware/auth.js";
 import { role } from "../middleware/role.js";
 import {
-  createDoctor,
+  upsertDoctor,
   getMyDoctorProfile,
   updateDoctor,
   getAllDoctors,
@@ -12,7 +12,8 @@ import {
 const router = express.Router();
 
 // Doctor creates their profile
-router.post("/", auth, role("doctor"), createDoctor);
+router.post("/", auth, role("doctor"), upsertDoctor);
+
 
 // Get my doctor profile
 router.get("/me", auth, role("doctor"), getMyDoctorProfile);

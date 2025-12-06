@@ -1,101 +1,66 @@
-# Clinexa Backend – Sprint 2 (Doctors & Clinics Module)
+# Clinexa Backend – Sprint 3 (Patients Module)
 
 ## 🚀 Overview
 
-Sprint 2 adds core medical features to the Clinexa platform by enabling doctors
-to create their profiles and set up their clinics.  
-These modules represent the primary building blocks before appointments, patients,
-and prescriptions can be implemented in future sprints.
+Sprint 3 introduces the Patient Module — one of the core building blocks of Clinexa.  
+Patients represent the primary end users who will create appointments, view prescriptions, and interact with doctors.
 
-This sprint extends the system beyond authentication and introduces real domain logic.
+This sprint implements:
+- Patient model
+- Patient profile management (Upsert)
+- Admin access to all patients
+- Doctor access to specific patient details
+- Standardized response structure
 
 ---
 
 ## 🎯 Sprint Objectives
 
-### 1) Doctors Module
-- Create & update doctor profile  
-- Link doctor to authenticated user  
-- Fetch doctor profile (public & private views)  
-- Expose doctor listing API for the mobile app  
-- Prevent duplicate doctor profiles (Upsert logic)
-
-### 2) Clinics Module
-- Create/update a clinic (Upsert)  
-- Link clinic → doctor  
-- Fetch clinic owned by the doctor  
-- Public endpoint to get clinic for any doctor  
-- Enforce one-clinic-per-doctor rule (V1 limitation)
+### 1. Patient Module
+- Create or update patient profile (Upsert logic)
+- Retrieve logged-in patient's profile
+- Retrieve all patients (Admin only)
+- Retrieve patient by ID (Doctor only)
+- Link patient ↔ user_id
 
 ---
 
-## 📦 Added Models
+## 📦 Added Model
 
-### **Doctor Model**
-- `user_id` (ref: User)  
-- `specialty`  
-- `bio`  
-- `years_of_experience`  
-- `clinic_id` (ref: Clinic)  
-- timestamps  
-
-### **Clinic Model**
-- `doctor_id` (ref: Doctor)  
-- `name`  
-- `address`  
-- `city`  
-- `phone`  
-- `location_link`  
-- timestamps  
+### **Patient Model**
+Fields:
+- `user_id` (ref: User)
+- `age`
+- `gender` (male/female)
+- `phone`
+- `address`
+- timestamps
 
 ---
 
 ## 🧱 API Endpoints
 
-### 🔵 **Doctors**
-| Method | Endpoint | Description | Auth |
-|-------|----------|-------------|------|
-| POST | `/api/doctors` | Create/Update doctor profile *(Upsert)* | Doctor Only |
-| GET | `/api/doctors/me` | Get logged-in doctor profile | Doctor Only |
-| PUT | `/api/doctors` | Update doctor profile | Doctor Only |
-| GET | `/api/doctors` | Get all doctors (public) | Public |
-| GET | `/api/doctors/:id` | Get doctor by ID | Public |
+### 🔵 **Patient Profile**
+| Method | Endpoint | Description | Role |
+|--------|----------|-------------|------|
+| POST | `/api/patients` | Create/Update patient profile *(Upsert)* | patient |
+| GET | `/api/patients/me` | Get logged-in patient's data | patient |
 
 ---
 
-### 🟢 **Clinics**
-| Method | Endpoint | Description | Auth |
-|-------|----------|-------------|------|
-| POST | `/api/clinics` | Create or update clinic *(Upsert)* | Doctor Only |
-| GET | `/api/clinics/me` | Get clinic for logged-in doctor | Doctor Only |
-| GET | `/api/clinics/:doctorId` | Get clinic by doctor | Public |
+### 🟢 **Admin Access**
+| Method | Endpoint | Description | Role |
+|--------|----------|-------------|------|
+| GET | `/api/patients` | Get all patients | admin |
 
 ---
 
-## ⚙️ Business Rules
-
-### Doctor Module
-- Each user with role `doctor` can only have **one doctor profile**.  
-- If doctor profile exists → update it.  
-- If not → create one.
-
-### Clinic Module
-- Each doctor can only have **one clinic** in V1.  
-- Clinic auto-links to doctor through `doctor_id`.  
-- Doctor auto-updates `clinic_id` after clinic creation.
+### 🟣 **Doctor Access**
+| Method | Endpoint | Description | Role |
+|--------|----------|-------------|------|
+| GET | `/api/patients/:id` | Get patient by ID | doctor |
 
 ---
 
-## 📁 File Structure (Added in Sprint 2)
+## 📁 File Structure (Added in Sprint 3)
 
-
-src/
-├── controllers/
-│ ├── doctor.controller.js
-│ └── clinic.controller.js
-├── models/
-│ ├── Doctor.js
-│ └── Clinic.js
-├── routes/
-│ ├── doctor.routes.js
-│ └── clinic.routes.js

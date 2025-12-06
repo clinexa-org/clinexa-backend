@@ -64,3 +64,10 @@ Fields:
 
 ## 📁 File Structure (Added in Sprint 3)
 
+src/
+├── controllers/
+│ └── patient.controller.js
+├── models/
+│ └── Patient.js
+├── routes/
+│ └── patient.routes.js

@@ -4,7 +4,7 @@ import dotenv from "dotenv";
 import authRoutes from "./routes/auth.routes.js";
 import doctorRoutes from "./routes/doctor.routes.js";
 import clinicRoutes from "./routes/clinic.routes.js";
-
+import patientRoutes from "./routes/patient.routes.js";
 
 dotenv.config();
 
@@ -24,4 +24,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api/clinics", clinicRoutes);
 
 app.use("/api/doctors", doctorRoutes);
+
+
+app.use("/api/patients", patientRoutes);
 export default app;

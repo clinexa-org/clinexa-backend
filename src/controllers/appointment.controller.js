@@ -4,6 +4,13 @@ import Clinic from "../models/Clinic.js";
 import Patient from "../models/Patient.js";
 import { success, error } from "../utils/response.js";
 
+import { sendEmail } from "../services/email.service.js";
+import {
+  appointmentCreatedTemplate,
+  appointmentConfirmedTemplate,
+  appointmentCancelledTemplate
+} from "../services/email.templates.js";
+
 /**
  * Patient creates appointment
  * Single-doctor system → backend picks doctor automatically
@@ -13,15 +20,15 @@ export const createAppointment = async (req, res) => {
     const { start_time, reason } = req.body;
 
     if (!start_time) {
-      return error(res, "start_time is required");
+      return error(res, "start_time is required", 400);
     }
 
     // find patient profile
-    const patient = await Patient.findOne({ user_id: req.user.id });
+    const patient = await Patient.findOne({ user_id: req.user.id }).populate("user_id");
     if (!patient) return error(res, "Patient profile not found", 404);
 
-    // single doctor in system (V1)
-    const doctor = await Doctor.findOne();
+    // single doctor in system (V1) + populate user to get doctor email
+    const doctor = await Doctor.findOne().populate("user_id");
     if (!doctor) return error(res, "Doctor profile not found", 404);
 
     // clinic for that doctor (optional)
@@ -41,6 +48,18 @@ export const createAppointment = async (req, res) => {
       source: "patient_app"
     });
 
+    // Email → Doctor (appointment created)
+    if (doctor?.user_id?.email) {
+      await sendEmail({
+        to: doctor.user_id.email,
+        subject: "New Appointment Booked",
+        html: appointmentCreatedTemplate({
+          patientName: patient?.user_id?.name || "Patient",
+          date: appointment.start_time.toLocaleString()
+        })
+      });
+    }
+
     return success(res, { appointment }, "Appointment created", 201);
   } catch (err) {
     return error(res, err.message, 500);
@@ -56,7 +75,10 @@ export const getMyAppointments = async (req, res) => {
     if (!patient) return error(res, "Patient profile not found", 404);
 
     const appointments = await Appointment.find({ patient_id: patient._id })
-      .populate("doctor_id")
+      .populate({
+        path: "doctor_id",
+        populate: { path: "user_id" }
+      })
       .populate("clinic_id")
       .sort({ start_time: 1 });
 
@@ -86,7 +108,10 @@ export const getDoctorAppointments = async (req, res) => {
     }
 
     const appointments = await Appointment.find(query)
-      .populate("patient_id")
+      .populate({
+        path: "patient_id",
+        populate: { path: "user_id" }
+      })
       .populate("clinic_id")
       .sort({ start_time: 1 });
 
@@ -116,8 +141,14 @@ export const adminGetAppointments = async (req, res) => {
     }
 
     const appointments = await Appointment.find(query)
-      .populate("doctor_id")
-      .populate("patient_id")
+      .populate({
+        path: "doctor_id",
+        populate: { path: "user_id" }
+      })
+      .populate({
+        path: "patient_id",
+        populate: { path: "user_id" }
+      })
       .populate("clinic_id")
       .sort({ start_time: 1 });
 
@@ -137,6 +168,21 @@ export const confirmAppointment = async (req, res) => {
 
     appointment.status = "confirmed";
     await appointment.save();
+
+    const doctor = await Doctor.findOne().populate("user_id");
+    const patient = await Patient.findById(appointment.patient_id).populate("user_id");
+
+    // Email → Patient (appointment confirmed)
+    if (patient?.user_id?.email) {
+      await sendEmail({
+        to: patient.user_id.email,
+        subject: "Appointment Confirmed",
+        html: appointmentConfirmedTemplate({
+          doctorName: doctor?.user_id?.name || "Clinexa Doctor",
+          date: appointment.start_time.toLocaleString()
+        })
+      });
+    }
 
     return success(res, { appointment }, "Appointment confirmed");
   } catch (err) {
@@ -162,6 +208,19 @@ export const cancelAppointment = async (req, res) => {
 
     appointment.status = "cancelled";
     await appointment.save();
+
+    const patient = await Patient.findById(appointment.patient_id).populate("user_id");
+
+    // Email → Patient (appointment cancelled)
+    if (patient?.user_id?.email) {
+      await sendEmail({
+        to: patient.user_id.email,
+        subject: "Appointment Cancelled",
+        html: appointmentCancelledTemplate({
+          date: appointment.start_time.toLocaleString()
+        })
+      });
+    }
 
     return success(res, { appointment }, "Appointment cancelled");
   } catch (err) {

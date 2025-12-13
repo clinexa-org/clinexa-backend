@@ -1,146 +1,150 @@
-# Clinexa Backend – Sprint 6 (Admin Module — Clinic Owner Admin)
+# Clinexa Backend (Node.js + Express + MongoDB)
 
-## 🚀 Overview
-Sprint 6 introduces the **Admin Module** for Clinexa V1 (Single-Doctor Clinic).  
-In this version, the admin is a **clinic-owner admin** (or a dedicated admin account) responsible for:
-- Monitoring core metrics
-- Managing patients
-- Managing appointments
-- Viewing prescriptions
-- Updating clinic settings
+Clinexa is a **single-doctor clinic SaaS** backend (V1) built with Node.js, Express, MongoDB (Mongoose), and JWT authentication.
 
-> Note: This is NOT a multi-doctor platform admin. V1 assumes **one doctor per system**.
-
----
-
-## 🎯 Sprint Objectives
-
-### ✅ Admin Dashboard
-- Provide basic stats (patients, appointments, prescriptions)
-- Track appointments today and by status
-
-### ✅ Patient Management
-- List all patients with their user data
-- Activate/Deactivate a patient account (toggle `User.is_active`)
-
-### ✅ Appointment Management
-- List all appointments with filters
-- Update appointment status (pending/confirmed/cancelled/completed)
-
-### ✅ Prescriptions Overview
-- Read-only view of all prescriptions
-
-### ✅ Clinic Settings
-- View clinic settings
-- Update clinic settings
+## ✅ Features (V1)
+- Auth (register/login/me) + roles (admin/doctor/patient)
+- Doctor Profile + Clinic Settings
+- Patient Profile
+- Appointments (booking + status lifecycle)
+- Prescriptions (items, notes, patient view)
+- Admin Module (clinic owner admin)
+- Notifications (Email via SMTP / Gmail App Password)
 
 ---
 
-## 🧱 API Endpoints
-
-### 🟦 Dashboard
-| Method | Endpoint | Description | Role |
-|--------|----------|-------------|------|
-| GET | `/api/admin/stats` | Get dashboard statistics | admin |
-
----
-
-### 🟩 Patients Management
-| Method | Endpoint | Description | Role |
-|--------|----------|-------------|------|
-| GET | `/api/admin/patients` | List all patients | admin |
-| PATCH | `/api/admin/patients/:id/toggle-active` | Toggle patient active status | admin |
-
-> `:id` here is **Patient._id** (not User._id)
+## 🧱 Tech Stack
+- Node.js + Express
+- MongoDB + Mongoose
+- JWT Auth
+- Nodemailer for email notifications
+- MVC structure
 
 ---
 
-### 🟨 Appointments Management
-| Method | Endpoint | Description | Role |
-|--------|----------|-------------|------|
-| GET | `/api/admin/appointments?status=&date=` | List appointments (filters) | admin |
-| PATCH | `/api/admin/appointments/:id/status` | Update appointment status | admin |
-
-Allowed status values:
-- `pending`
-- `confirmed`
-- `cancelled`
-- `completed`
-
----
-
-### 🟪 Prescriptions Overview
-| Method | Endpoint | Description | Role |
-|--------|----------|-------------|------|
-| GET | `/api/admin/prescriptions` | List all prescriptions | admin |
-
----
-
-### 🟫 Clinic Settings
-| Method | Endpoint | Description | Role |
-|--------|----------|-------------|------|
-| GET | `/api/admin/clinic` | Get clinic settings | admin |
-| PUT | `/api/admin/clinic` | Update clinic settings | admin |
-
-> Single-doctor system → clinic is resolved automatically from the only doctor in DB.
-
----
-
-## 📁 File Structure Added in Sprint 6
-
+## 📁 Project Structure
 src/
-├── controllers/
-│ └── admin.controller.js
-├── routes/
-│ └── admin.routes.js
+config/ # db connection
+controllers/ # controllers (MVC)
+middleware/ # auth + role
+models/ # mongoose models
+routes/ # routes per module
+services/ # email service + templates
+utils/ # response helper
+app.js # express app
+server.js # server bootstrap
 
 yaml
 Copy code
 
 ---
 
-## ⚙️ Business Rules (V1)
+## ⚙️ Setup
 
-- Admin endpoints are protected by `role("admin")`.
-- Patient activation toggles `User.is_active` via linked `Patient.user_id`.
-- Appointment listing supports optional filters:
-  - `status=pending`
-  - `date=YYYY-MM-DD`
-- Clinic settings endpoints resolve the clinic based on the single doctor in the system.
+### 1) Install dependencies
+```bash
+npm install
+2) Create .env
+Create a .env file in the project root:
 
----
+env
+Copy code
+PORT=5000
+MONGO_URI="your_mongo_connection_string"
+JWT_SECRET=your_secret_key
 
-## 🧪 Postman Testing Checklist
+# SMTP (Gmail example)
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=your_email@gmail.com
+SMTP_PASS=your_app_password
+SMTP_FROM=your_email@gmail.com
+For Gmail: use App Password, not your normal password.
 
-1) Login as admin → set token  
-2) GET `/api/admin/stats`  
-3) GET `/api/admin/patients`  
-4) PATCH `/api/admin/patients/:id/toggle-active`  
-5) GET `/api/admin/appointments?status=pending`  
-6) PATCH `/api/admin/appointments/:id/status` with `{ "status": "confirmed" }`  
-7) GET `/api/admin/prescriptions`  
-8) GET `/api/admin/clinic`  
-9) PUT `/api/admin/clinic` (update data)
+3) Run in dev mode
+bash
+Copy code
+npm run dev
+🔐 Response Format
+All endpoints follow a standard response:
 
----
+json
+Copy code
+{
+  "success": true,
+  "message": "Success",
+  "data": {}
+}
+🧩 Modules Overview (V1)
+Sprint 1 — Auth
+POST /api/auth/register
 
-## 🏁 Sprint 6 Completion Criteria
+POST /api/auth/login
 
-✔ Admin routes implemented  
-✔ Stats endpoint working  
-✔ Patients management works (toggle active)  
-✔ Appointments list + status update working  
-✔ Prescriptions overview working  
-✔ Clinic settings read/update working  
-✔ Tested via Postman  
-✔ Documentation updated  
+GET /api/auth/me
 
----
+Sprint 2 — Doctor + Clinic
+POST /api/doctors (doctor upsert)
 
-## 📌 Next Sprint: Sprint 7 — Notifications (Basic V1)
+GET /api/doctors/me
 
-- Email notifications on:
-  - appointment created
-  - appointment confirmed
-  - appointment cancelled
-- Simple service integration inside controllers
+POST /api/clinics (clinic upsert)
+
+GET /api/clinics/me
+
+Sprint 3 — Patients
+POST /api/patients (upsert)
+
+GET /api/patients/me
+
+Sprint 4 — Appointments
+Single-doctor logic: patient does NOT send doctor_id. Backend auto-assigns the single doctor.
+
+POST /api/appointments (patient books)
+
+GET /api/appointments/my (patient)
+
+GET /api/appointments/doctor (doctor)
+
+PATCH /api/appointments/confirm/:id (doctor/admin)
+
+PATCH /api/appointments/cancel/:id (patient/doctor/admin)
+
+PATCH /api/appointments/complete/:id (doctor/admin)
+
+Sprint 5 — Prescriptions
+POST /api/prescriptions (doctor)
+
+PUT /api/prescriptions/:id (doctor)
+
+GET /api/prescriptions/my (patient)
+
+GET /api/prescriptions/patient/:patientId (doctor/admin)
+
+GET /api/prescriptions/appointment/:appointmentId (doctor/admin)
+
+Sprint 6 — Admin (Clinic Owner)
+GET /api/admin/stats
+
+GET /api/admin/patients
+
+PATCH /api/admin/patients/:id/toggle-active
+
+GET /api/admin/appointments?status=&date=YYYY-MM-DD
+
+PATCH /api/admin/appointments/:id/status
+
+GET /api/admin/prescriptions
+
+GET /api/admin/clinic
+
+PUT /api/admin/clinic
+
+Sprint 7 — Notifications (Email)
+Emails are triggered on:
+
+Appointment created (email → doctor)
+
+Appointment confirmed (email → patient)
+
+Appointment cancelled (email → patient)

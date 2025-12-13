@@ -12,7 +12,7 @@ const testEmail = async () => {
   
   try {
     await sendEmail({
-      to: "faressamyin@gmail.com",
+      to: "abdotorki693@gmail.com",
       subject: "✅ نظام Clinexa جاهز للعمل!",
       html: `
         <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; padding: 0;">

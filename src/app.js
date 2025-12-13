@@ -2,7 +2,12 @@ import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 import authRoutes from "./routes/auth.routes.js";
-
+import doctorRoutes from "./routes/doctor.routes.js";
+import clinicRoutes from "./routes/clinic.routes.js";
+import patientRoutes from "./routes/patient.routes.js";
+import appointmentRoutes from "./routes/appointment.routes.js";
+import prescriptionRoutes from "./routes/prescription.routes.js";
+import adminRoutes from "./routes/admin.routes.js";
 dotenv.config();
 
 const app = express();
@@ -18,4 +23,16 @@ app.get("/", (req, res) => {
 // Routes
 app.use("/api/auth", authRoutes);
 
+app.use("/api/clinics", clinicRoutes);
+
+app.use("/api/doctors", doctorRoutes);
+
+
+app.use("/api/patients", patientRoutes);
+
+app.use("/api/appointments", appointmentRoutes);
+
+app.use("/api/prescriptions", prescriptionRoutes);
+
+app.use("/api/admin", adminRoutes);
 export default app;

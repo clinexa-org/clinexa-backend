@@ -1,151 +1,177 @@
-flowchart TD
+# Clinexa Backend (V1) — Node.js + Express + MongoDB
 
-START([Start Clinexa V1]) --> S1
+Clinexa is a **single-doctor clinic SaaS backend (V1)** built to support:
+- **Patient Mobile App** (Flutter)
+- **Doctor Web Dashboard** (Flutter Web)
+- **Admin Panel** (Clinic Owner Admin)
+- Unified backend (Node.js + MongoDB)
 
-%% Sprint 1
-subgraph S1[Sprint 1 Auth]
-  A1[Register<br/>POST auth register] --> A2[Login<br/>POST auth login]
-  A2 --> A3[Me<br/>GET auth me]
-  A2 --> TOK[JWT Token]
-  TOK --> ROLE{Role}
-  ROLE -->|patient| R_PAT[Patient Access]
-  ROLE -->|doctor| R_DOC[Doctor Access]
-  ROLE -->|admin| R_ADM[Admin Access]
-end
+> ✅ Current Release: **v1.0.0**
 
-S1 --> S2
+---
 
-%% Sprint 2
-subgraph S2[Sprint 2 Doctor and Clinic]
-  D1[Doctor Profile Upsert<br/>POST doctors]
-  D2[Doctor Profile Me<br/>GET doctors me]
-  C1[Clinic Upsert<br/>POST clinics]
-  C2[Clinic Me<br/>GET clinics me]
-  PUB1[Public Doctors<br/>GET doctors]
-  PUB2[Public Clinic by Doctor<br/>GET clinics by doctorId]
+## ✅ Features (V1)
 
-  R_DOC --> D1 --> D2
-  R_DOC --> C1 --> C2
-  PUB1 --> PUB2
-end
+### Sprint 1 — Auth
+- Register / Login
+- Roles: `admin`, `doctor`, `patient`
+- JWT Authentication
+- `/auth/me`
+- Standard API response format
 
-S2 --> S3
+### Sprint 2 — Doctor + Clinic
+- Doctor profile upsert
+- Clinic upsert linked to doctor
+- Public endpoints for listing doctors/clinic by doctor
 
-%% Sprint 3
-subgraph S3[Sprint 3 Patients]
-  P1[Patient Profile Upsert<br/>POST patients]
-  P2[Patient Profile Me<br/>GET patients me]
-  ADM_P1[Admin Get Patients<br/>GET patients]
-  DOC_P1[Doctor Get Patient<br/>GET patients by id]
+### Sprint 3 — Patients
+- Patient profile upsert
+- Patient profile view (me)
+- Admin get all patients
+- Doctor get patient by id
 
-  R_PAT --> P1 --> P2
-  R_ADM --> ADM_P1
-  R_DOC --> DOC_P1
-end
+### Sprint 4 — Appointments (Core)
+- Patient books appointment
+- Single-doctor V1: backend auto-assigns doctor
+- Doctor confirms / completes
+- Patient/Doctor/Admin cancels
+- Doctor view list (optional filter by date)
+- Admin view appointments with filters
 
-S3 --> S4
+### Sprint 5 — Prescriptions
+- Doctor creates/updates prescriptions
+- Prescription items support
+- Patient views own prescriptions
+- Doctor/Admin views prescriptions by patient or appointment
+- Admin overview
 
-%% Sprint 4
-subgraph S4[Sprint 4 Appointments Core]
-  AP1[Book Appointment<br/>POST appointments]
-  AP2[My Appointments<br/>GET appointments my]
-  AP3[Doctor Appointments<br/>GET appointments doctor]
-  AP4[Confirm Appointment<br/>PATCH confirm id]
-  AP5[Cancel Appointment<br/>PATCH cancel id]
-  AP6[Complete Appointment<br/>PATCH complete id]
+### Sprint 6 — Admin
+- Basic stats
+- Manage patients (toggle active)
+- Manage appointments status
+- Manage clinic settings
+- Prescriptions overview
 
-  AUTO[Auto Assign Doctor<br/>Single doctor V1]
-  STATUS[(Appointment Status)]
-  ST1[pending]
-  ST2[confirmed]
-  ST3[cancelled]
-  ST4[completed]
+### Sprint 7 — Notifications (Email)
+Email triggers:
+- Appointment created → Email to Doctor
+- Appointment confirmed → Email to Patient
+- Appointment cancelled → Email to Patient
 
-  R_PAT --> AP1 --> AUTO --> STATUS
-  R_PAT --> AP2
-  R_DOC --> AP3
+---
 
-  R_DOC --> AP4
-  R_ADM --> AP4
+## 🧱 Tech Stack
+- Node.js + Express
+- MongoDB + Mongoose
+- JWT Auth
+- Nodemailer (Email notifications)
+- MVC structure
 
-  R_PAT --> AP5
-  R_DOC --> AP5
-  R_ADM --> AP5
+---
 
-  R_DOC --> AP6
-  R_ADM --> AP6
+## 📁 Project Structure
 
-  STATUS --> ST1
-  ST1 -->|confirm| ST2
-  ST1 -->|cancel| ST3
-  ST2 -->|cancel| ST3
-  ST2 -->|complete| ST4
-end
 
-S4 --> S5
+src/
+config/ # DB connection
+controllers/ # controllers
+middleware/ # auth + role
+models/ # mongoose models
+routes/ # routes per module
+services/ # email service + templates
+utils/ # response helpers
+app.js # express app
+server.js # server bootstrap
+docs/ # flows & diagrams (Mermaid)
 
-%% Sprint 5
-subgraph S5[Sprint 5 Prescriptions]
-  PR1[Create Prescription<br/>POST prescriptions]
-  PR2[Update Prescription<br/>PUT prescriptions id]
-  PR3[Patient My Prescriptions<br/>GET prescriptions my]
-  PR4[By Patient<br/>GET prescriptions patient id]
-  PR5[By Appointment<br/>GET prescriptions appointment id]
-  PR6[Admin All Prescriptions<br/>GET prescriptions]
 
-  R_DOC --> PR1 --> PR2
-  R_PAT --> PR3
-  R_DOC --> PR4
-  R_ADM --> PR4
-  R_DOC --> PR5
-  R_ADM --> PR5
-  R_ADM --> PR6
-end
+---
 
-S5 --> S6
+## ⚙️ Setup (Local)
 
-%% Sprint 6
-subgraph S6[Sprint 6 Admin]
-  AS1[Stats<br/>GET admin stats]
-  AS2[Patients List<br/>GET admin patients]
-  AS3[Toggle Patient Active<br/>PATCH admin patient toggle]
-  AS4[Appointments List<br/>GET admin appointments]
-  AS5[Update Appointment Status<br/>PATCH admin appointment status]
-  AS6[Prescriptions Overview<br/>GET admin prescriptions]
-  AS7[Clinic Get<br/>GET admin clinic]
-  AS8[Clinic Update<br/>PUT admin clinic]
+### 1) Install
+```bash
+npm install
 
-  R_ADM --> AS1
-  R_ADM --> AS2 --> AS3
-  R_ADM --> AS4 --> AS5
-  R_ADM --> AS6
-  R_ADM --> AS7 --> AS8
-end
+2) Environment Variables (.env)
 
-S6 --> S7
+Create .env in the project root:
 
-%% Sprint 7
-subgraph S7[Sprint 7 Notifications Email]
-  N0[Email Service<br/>Nodemailer SMTP]
-  N1[Trigger Appointment Created]
-  N2[Trigger Appointment Confirmed]
-  N3[Trigger Appointment Cancelled]
+PORT=5000
+MONGO_URI="your_mongo_connection_string"
+JWT_SECRET=your_jwt_secret
 
-  ED[Email to Doctor]
-  EP1[Email to Patient Confirmed]
-  EP2[Email to Patient Cancelled]
+# Email (Gmail SMTP Example)
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=your_email@gmail.com
+SMTP_PASS=your_gmail_app_password
+SMTP_FROM=your_email@gmail.com
 
-  N1 --> ED
-  N2 --> EP1
-  N3 --> EP2
 
-  AP1 -. triggers .-> N1
-  AP4 -. triggers .-> N2
-  AP5 -. triggers .-> N3
+✅ Gmail requires App Password (not your normal Gmail password).
 
-  N0 --- N1
-  N0 --- N2
-  N0 --- N3
-end
+3) Run
+npm run dev
 
-S7 --> DONE([Clinexa Backend V1 Completed])
+
+API base:
+
+http://localhost:5000/api
+
+✅ Standard Response Format
+
+All endpoints respond as:
+
+{
+  "success": true,
+  "message": "Success",
+  "data": {}
+}
+
+🧪 Postman Testing
+
+Import:
+
+clinexa-postman.json
+
+Recommended order:
+
+Auth (register/login/me)
+
+Doctor + Clinic
+
+Patient profile
+
+Appointments (create → confirm → cancel)
+
+Prescriptions
+
+Admin endpoints
+
+Sprint 7 is validated by triggering appointment events (emails will be sent if SMTP is configured).
+
+🚀 Release Workflow (Company Style)
+
+Branches:
+
+development → integration branch (work in progress)
+
+main → stable release branch (deploy from here)
+
+sprint-* → sprint branches
+
+Release steps:
+
+Merge development → main
+
+Create tag (example):
+
+git tag -a v1.0.0 -m "Clinexa Backend V1"
+git push origin main --tags
+
+📌 Notes (V1 Constraints)
+
+Single-doctor system (V1): patient does not choose doctor
+
+Multi-doctor / multi-branch will be in V3

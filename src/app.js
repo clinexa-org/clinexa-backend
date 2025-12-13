@@ -6,6 +6,7 @@ import doctorRoutes from "./routes/doctor.routes.js";
 import clinicRoutes from "./routes/clinic.routes.js";
 import patientRoutes from "./routes/patient.routes.js";
 import appointmentRoutes from "./routes/appointment.routes.js";
+import prescriptionRoutes from "./routes/prescription.routes.js";
 dotenv.config();
 
 const app = express();
@@ -29,4 +30,6 @@ app.use("/api/doctors", doctorRoutes);
 app.use("/api/patients", patientRoutes);
 
 app.use("/api/appointments", appointmentRoutes);
+
+app.use("/api/prescriptions", prescriptionRoutes);
 export default app;

@@ -1,145 +1,146 @@
-# Clinexa Backend – Sprint 5 (Prescriptions Module)
+# Clinexa Backend – Sprint 6 (Admin Module — Clinic Owner Admin)
 
 ## 🚀 Overview
-Sprint 5 introduces the **Prescriptions Module**, enabling doctors to create medical prescriptions for patients and allowing patients to view their prescriptions inside the Clinexa patient app.
+Sprint 6 introduces the **Admin Module** for Clinexa V1 (Single-Doctor Clinic).  
+In this version, the admin is a **clinic-owner admin** (or a dedicated admin account) responsible for:
+- Monitoring core metrics
+- Managing patients
+- Managing appointments
+- Viewing prescriptions
+- Updating clinic settings
 
-In V1, prescriptions are stored as structured JSON (no PDF generation yet).  
-PDF export and richer medical records will be part of V2.
+> Note: This is NOT a multi-doctor platform admin. V1 assumes **one doctor per system**.
 
 ---
 
 ## 🎯 Sprint Objectives
 
-### ✅ Doctor
-- Create a prescription for a patient
-- Add prescription items (medications)
-- Update an existing prescription
-- View prescriptions by patient
-- View prescriptions by appointment
+### ✅ Admin Dashboard
+- Provide basic stats (patients, appointments, prescriptions)
+- Track appointments today and by status
 
-### ✅ Patient
-- View all own prescriptions
-- View a specific prescription (only if it belongs to the patient)
+### ✅ Patient Management
+- List all patients with their user data
+- Activate/Deactivate a patient account (toggle `User.is_active`)
 
-### ✅ Admin
-- View all prescriptions (overview)
+### ✅ Appointment Management
+- List all appointments with filters
+- Update appointment status (pending/confirmed/cancelled/completed)
 
----
+### ✅ Prescriptions Overview
+- Read-only view of all prescriptions
 
-## 🧱 Data Model
-
-### **Prescription**
-| Field | Type | Description |
-|------|------|-------------|
-| doctor_id | ObjectId | Linked doctor |
-| patient_id | ObjectId | Linked patient |
-| appointment_id | ObjectId (optional) | Linked appointment (recommended) |
-| notes | String | General notes from doctor |
-| items | Array | List of prescription items |
-| timestamps | Date | createdAt / updatedAt |
-
-### **Prescription Item (embedded)**
-| Field | Type | Description |
-|------|------|-------------|
-| name | String | Medication name (required) |
-| dosage | String | Example: `1x daily` |
-| duration | String | Example: `5 days` |
-| instructions | String | Example: `After food` |
+### ✅ Clinic Settings
+- View clinic settings
+- Update clinic settings
 
 ---
 
-## 🔗 API Endpoints
+## 🧱 API Endpoints
 
-### 🟦 Doctor Routes
+### 🟦 Dashboard
 | Method | Endpoint | Description | Role |
 |--------|----------|-------------|------|
-| POST | `/api/prescriptions` | Create prescription | doctor |
-| PUT | `/api/prescriptions/:id` | Update prescription | doctor |
-| GET | `/api/prescriptions/:id` | Get prescription by ID | doctor/admin/patient* |
-| GET | `/api/prescriptions/patient/:patientId` | Get prescriptions by patient | doctor/admin |
-| GET | `/api/prescriptions/appointment/:appointmentId` | Get prescriptions by appointment | doctor/admin |
-
-> *Patient can only access a prescription if it belongs to their own account.*
+| GET | `/api/admin/stats` | Get dashboard statistics | admin |
 
 ---
 
-### 🟩 Patient Routes
+### 🟩 Patients Management
 | Method | Endpoint | Description | Role |
 |--------|----------|-------------|------|
-| GET | `/api/prescriptions/my` | Get my prescriptions | patient |
+| GET | `/api/admin/patients` | List all patients | admin |
+| PATCH | `/api/admin/patients/:id/toggle-active` | Toggle patient active status | admin |
+
+> `:id` here is **Patient._id** (not User._id)
 
 ---
 
-### 🟪 Admin Routes
+### 🟨 Appointments Management
 | Method | Endpoint | Description | Role |
 |--------|----------|-------------|------|
-| GET | `/api/prescriptions` | Get all prescriptions | admin |
+| GET | `/api/admin/appointments?status=&date=` | List appointments (filters) | admin |
+| PATCH | `/api/admin/appointments/:id/status` | Update appointment status | admin |
+
+Allowed status values:
+- `pending`
+- `confirmed`
+- `cancelled`
+- `completed`
 
 ---
 
-## ⚙️ Business Rules (V1)
-
-- A prescription must belong to exactly one patient and one doctor.
-- The prescription may optionally link to an appointment.
-- Only doctors can create or update prescriptions.
-- Patients can only view prescriptions that belong to them.
-- Admin has read access to all prescriptions for reporting and monitoring.
-- In V1, prescriptions are stored as JSON (PDF will be implemented in V2).
+### 🟪 Prescriptions Overview
+| Method | Endpoint | Description | Role |
+|--------|----------|-------------|------|
+| GET | `/api/admin/prescriptions` | List all prescriptions | admin |
 
 ---
 
-## 📁 File Structure Added in Sprint 5
+### 🟫 Clinic Settings
+| Method | Endpoint | Description | Role |
+|--------|----------|-------------|------|
+| GET | `/api/admin/clinic` | Get clinic settings | admin |
+| PUT | `/api/admin/clinic` | Update clinic settings | admin |
+
+> Single-doctor system → clinic is resolved automatically from the only doctor in DB.
+
+---
+
+## 📁 File Structure Added in Sprint 6
 
 src/
-├── models/
-│ └── Prescription.js
 ├── controllers/
-│ └── prescription.controller.js
+│ └── admin.controller.js
 ├── routes/
-│ └── prescription.routes.js
+│ └── admin.routes.js
 
 yaml
 Copy code
 
 ---
 
-## 🧪 Postman Testing Checklist
+## ⚙️ Business Rules (V1)
 
-### ✅ Doctor
-1. Login as doctor → set token  
-2. Create prescription: `POST /api/prescriptions`
-3. Update prescription: `PUT /api/prescriptions/:id`
-4. Get by patient: `GET /api/prescriptions/patient/:patientId`
-5. Get by appointment: `GET /api/prescriptions/appointment/:appointmentId`
-
-### ✅ Patient
-1. Login as patient → set token  
-2. Get my prescriptions: `GET /api/prescriptions/my`
-
-### ✅ Admin
-1. Login as admin → set token  
-2. Get all prescriptions: `GET /api/prescriptions`
+- Admin endpoints are protected by `role("admin")`.
+- Patient activation toggles `User.is_active` via linked `Patient.user_id`.
+- Appointment listing supports optional filters:
+  - `status=pending`
+  - `date=YYYY-MM-DD`
+- Clinic settings endpoints resolve the clinic based on the single doctor in the system.
 
 ---
 
-## 🏁 Sprint 5 Completion Criteria
+## 🧪 Postman Testing Checklist
 
-✔ Prescription model implemented  
-✔ Items embedded schema implemented  
-✔ Role-based access working (doctor/patient/admin)  
-✔ Patient restricted access verified  
-✔ Linked correctly with patients and optional appointments  
-✔ Tested through Postman  
+1) Login as admin → set token  
+2) GET `/api/admin/stats`  
+3) GET `/api/admin/patients`  
+4) PATCH `/api/admin/patients/:id/toggle-active`  
+5) GET `/api/admin/appointments?status=pending`  
+6) PATCH `/api/admin/appointments/:id/status` with `{ "status": "confirmed" }`  
+7) GET `/api/admin/prescriptions`  
+8) GET `/api/admin/clinic`  
+9) PUT `/api/admin/clinic` (update data)
+
+---
+
+## 🏁 Sprint 6 Completion Criteria
+
+✔ Admin routes implemented  
+✔ Stats endpoint working  
+✔ Patients management works (toggle active)  
+✔ Appointments list + status update working  
+✔ Prescriptions overview working  
+✔ Clinic settings read/update working  
+✔ Tested via Postman  
 ✔ Documentation updated  
 
 ---
 
-## 📌 Next Sprint: Sprint 6 — Admin Module (Clinic Owner Admin)
+## 📌 Next Sprint: Sprint 7 — Notifications (Basic V1)
 
-Sprint 6 will focus on:
-- Managing patients (activate/deactivate)
-- Appointments management dashboard
-- Basic stats
-- Prescriptions overview
-- Clinic settings endpoints
-لو تحب، أجهز لك كمان Checklist سريع تقفل بيه س
+- Email notifications on:
+  - appointment created
+  - appointment confirmed
+  - appointment cancelled
+- Simple service integration inside controllers

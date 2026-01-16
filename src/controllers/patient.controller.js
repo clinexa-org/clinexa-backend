@@ -1,12 +1,28 @@
 import Patient from "../models/Patient.js";
+import User from "../models/User.js";
+import cloudinary from "../config/cloudinary.js";
 import { success, error } from "../utils/response.js";
 
 /**
- * Create or Update Patient Profile
+ * Create or Update Patient Profile (with optional avatar)
  */
 export const upsertPatient = async (req, res) => {
   try {
     const { age, gender, phone, address } = req.body;
+
+    // Handle avatar - save to User model
+    if (req.file) {
+      const user = await User.findById(req.user.id);
+      if (user) {
+        // Delete old avatar if exists
+        if (user.avatar_public_id) {
+          await cloudinary.uploader.destroy(user.avatar_public_id);
+        }
+        user.avatar = req.file.path;
+        user.avatar_public_id = req.file.filename;
+        await user.save();
+      }
+    }
 
     let patient = await Patient.findOne({ user_id: req.user.id });
 
@@ -17,6 +33,8 @@ export const upsertPatient = async (req, res) => {
       patient.address = address ?? patient.address;
       await patient.save();
 
+      // Populate user for response
+      await patient.populate("user_id", "name email avatar");
       return success(res, { patient }, "Patient profile updated");
     }
 
@@ -28,6 +46,8 @@ export const upsertPatient = async (req, res) => {
       address
     });
 
+    // Populate user for response
+    await patient.populate("user_id", "name email avatar");
     return success(res, { patient }, "Patient profile created", 201);
   } catch (err) {
     return error(res, err.message);

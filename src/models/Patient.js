@@ -6,7 +6,9 @@ const patientSchema = new mongoose.Schema(
     age: { type: Number, default: null },
     gender: { type: String, enum: ["male", "female"], default: null },
     phone: { type: String, default: "" },
-    address: { type: String, default: "" }
+    address: { type: String, default: "" },
+    avatar: { type: String, default: null },
+    avatar_public_id: { type: String, default: null }
   },
   { timestamps: true }
 );

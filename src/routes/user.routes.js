@@ -4,13 +4,13 @@ import {
   updateProfile,
   getProfile,
 } from "../controllers/user.controller.js";
-import { authenticate } from "../middleware/auth.middleware.js";
+import { auth } from "../middleware/auth.js";
 import upload from "../middleware/upload.middleware.js";
 
 const router = express.Router();
 
 // All routes require authentication
-router.use(authenticate);
+router.use(auth);
 
 // Profile routes
 router.get("/profile", getProfile);

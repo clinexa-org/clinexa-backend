@@ -1,6 +1,5 @@
 import express from "express";
 import {
-  uploadAvatar,
   removeAvatar,
   updateProfile,
   getProfile,
@@ -13,12 +12,11 @@ const router = express.Router();
 // All routes require authentication
 router.use(authenticate);
 
-// Avatar routes
-router.post("/avatar", upload.single("avatar"), uploadAvatar);
-router.delete("/avatar", removeAvatar);
-
 // Profile routes
 router.get("/profile", getProfile);
-router.put("/profile", updateProfile);
+router.put("/profile", upload.single("avatar"), updateProfile);
+
+// Remove avatar (set back to default)
+router.delete("/avatar", removeAvatar);
 
 export default router;

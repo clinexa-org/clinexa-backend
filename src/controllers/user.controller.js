@@ -69,8 +69,9 @@ export const removeAvatar = async (req, res) => {
 };
 
 /**
- * Update Profile
+ * Update Profile (with optional avatar)
  * PUT /api/users/profile
+ * Accepts: name (body), avatar (file - optional)
  */
 export const updateProfile = async (req, res) => {
   try {
@@ -81,7 +82,19 @@ export const updateProfile = async (req, res) => {
       return error(res, "User not found", 404);
     }
 
+    // Update name if provided
     if (name) user.name = name;
+
+    // Handle avatar upload if file provided
+    if (req.file) {
+      // Delete old avatar from Cloudinary if exists
+      if (user.avatar_public_id) {
+        await cloudinary.uploader.destroy(user.avatar_public_id);
+      }
+      user.avatar = req.file.path;
+      user.avatar_public_id = req.file.filename;
+    }
+
     await user.save();
 
     return success(

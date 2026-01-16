@@ -20,6 +20,7 @@ export const register = async (req, res) => {
       email,
       passwordHash,
       role: role || "patient",
+      avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=6366f1&color=fff&size=200`,
     });
 
     const token = jwt.sign(

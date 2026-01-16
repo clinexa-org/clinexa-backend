@@ -1,19 +1,39 @@
 import mongoose from "mongoose";
 
+const MONGO_URI = process.env.MONGO_URI;
+
+if (!MONGO_URI) {
+  throw new Error("Missing MONGO_URI in environment variables");
+}
+
+// Cache connection across hot-reloads / serverless invocations
+let cached = globalThis.__mongoose;
+if (!cached) {
+  cached = globalThis.__mongoose = { conn: null, promise: null };
+}
+
 const connectDB = async () => {
   try {
-    if (mongoose.connection.readyState >= 1) {
-      return;
+    if (cached.conn) return cached.conn;
+
+    if (!cached.promise) {
+      cached.promise = mongoose.connect(MONGO_URI, {
+        serverSelectionTimeoutMS: 10000
+      });
     }
-    await mongoose.connect(process.env.MONGO_URI);
-    console.log("MongoDB Connected Successfully");
+
+    cached.conn = await cached.promise;
+
+    // اختياري: اطبع مرة واحدة
+    if (process.env.NODE_ENV !== "production") {
+      console.log("MongoDB Connected Successfully");
+    }
+
+    return cached.conn;
   } catch (error) {
-    console.error("MongoDB Connection Error:", error.message);
-    console.error("Hint: Ensure MongoDB is running locally or check your MONGO_URI");
-    // Don't exit process in serverless environment
-    if (process.env.NODE_ENV !== 'production') {
-      process.exit(1);
-    }
+    cached.promise = null; // reset so next request can retry
+    console.error("MongoDB Connection Error:", error?.message || error);
+    throw error; // مهم: خلي Vercel يرجّع 500 بدل ما يكمّل بـ app فاضي
   }
 };
 

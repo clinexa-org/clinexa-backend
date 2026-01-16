@@ -137,3 +137,112 @@ await profileService.updateProfile(
   }
 }
 ```
+
+---
+
+## Patient Endpoints (with Avatar)
+
+| Method | Endpoint           | Description                     |
+| ------ | ------------------ | ------------------------------- |
+| `GET`  | `/api/patients/me` | Get patient profile with avatar |
+| `POST` | `/api/patients`    | Create/update patient profile   |
+
+### Response Format (`/api/patients/me`)
+
+```json
+{
+  "success": true,
+  "data": {
+    "patient": {
+      "_id": "...",
+      "user_id": {
+        "_id": "...",
+        "name": "Fares Samy",
+        "email": "user@example.com",
+        "avatar": "https://res.cloudinary.com/..."
+      },
+      "age": 25,
+      "gender": "male",
+      "phone": "+201234567890",
+      "address": "Cairo, Egypt"
+    }
+  }
+}
+```
+
+### Flutter Model
+
+```dart
+class Patient {
+  final String id;
+  final User user;
+  final int? age;
+  final String? gender;
+  final String? phone;
+  final String? address;
+
+  Patient({
+    required this.id,
+    required this.user,
+    this.age,
+    this.gender,
+    this.phone,
+    this.address,
+  });
+
+  factory Patient.fromJson(Map<String, dynamic> json) {
+    return Patient(
+      id: json['_id'],
+      user: User.fromJson(json['user_id']),
+      age: json['age'],
+      gender: json['gender'],
+      phone: json['phone'],
+      address: json['address'],
+    );
+  }
+}
+
+class User {
+  final String id;
+  final String name;
+  final String email;
+  final String avatar;
+
+  User({
+    required this.id,
+    required this.name,
+    required this.email,
+    required this.avatar,
+  });
+
+  factory User.fromJson(Map<String, dynamic> json) {
+    return User(
+      id: json['_id'],
+      name: json['name'],
+      email: json['email'],
+      avatar: json['avatar'] ?? '',
+    );
+  }
+}
+```
+
+### Get Patient Profile
+
+```dart
+Future<Patient?> getMyPatient() async {
+  final response = await http.get(
+    Uri.parse('$baseUrl/api/patients/me'),
+    headers: {'Authorization': 'Bearer $token'},
+  );
+
+  if (response.statusCode == 200) {
+    final data = jsonDecode(response.body)['data']['patient'];
+    return Patient.fromJson(data);
+  }
+  return null;
+}
+
+// Usage: Access avatar via patient.user.avatar
+final patient = await getMyPatient();
+print(patient?.user.avatar); // https://res.cloudinary.com/...
+```

@@ -8,7 +8,8 @@ import {
   adminGetAppointments,
   confirmAppointment,
   cancelAppointment,
-  completeAppointment
+  completeAppointment,
+  rescheduleAppointment
 } from "../controllers/appointment.controller.js";
 
 const router = express.Router();
@@ -33,5 +34,8 @@ router.patch("/cancel/:id", auth, role("patient", "doctor", "admin"), cancelAppo
 
 // Doctor/Admin: complete appointment
 router.patch("/complete/:id", auth, role("doctor", "admin"), completeAppointment);
+
+// Patient: reschedule appointment
+router.patch("/reschedule/:id", auth, role("patient"), rescheduleAppointment);
 
 export default router;

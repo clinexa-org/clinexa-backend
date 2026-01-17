@@ -104,8 +104,68 @@ if (success) {
 
 ---
 
-## Important Logic Notes
+## Rescheduling Appointments
 
-1.  **Single Doctor:** You don't need to select a doctor in the UI. The backend automatically finds the primary doctor.
-2.  **Date Format:** Ensure `DateTime` is converted to **ISO 8601 String** (`toIso8601String()`) before sending.
-3.  **Validation:** The backend validates that the time is in the future.
+- **URL:** `PATCH /api/appointments/reschedule/:id`
+- **Body:** Same as Create (`date`, `time`, or `start_time`)
+
+---
+
+## UI Logic: Displaying the Card
+
+As shown in your screenshot, follow this logic for the Card UI:
+
+### 1. Doctor Name (Nested Object)
+
+The backend populates the doctor data. The name is nested:
+`appointment.doctor_id.user_id.name`
+
+**Flutter Model adjustment:**
+
+```dart
+class Doctor {
+  final String id;
+  final User user_id; // Contains the name
+
+  Doctor({required this.id, required this.user_id});
+
+  factory Doctor.fromJson(Map<String, dynamic> json) {
+    return Doctor(
+      id: json['_id'],
+      user_id: User.fromJson(json['user_id']),
+    );
+  }
+}
+```
+
+### 2. Status Colors
+
+- **Pending:** Blue / Light Blue
+- **Confirmed:** Green
+- **Cancelled:** Red
+- **Completed:** Grey
+
+### 3. Reschedule Action
+
+When the user clicks **Reschedule**:
+
+1. Open a **Date/Time Picker**.
+2. If the user picks a new time, call the `rescheduleAppointment` API.
+3. Refresh the appointments list.
+
+```dart
+Future<bool> reschedule(String id, String newDate, String newTime) async {
+  final response = await http.patch(
+    Uri.parse('$baseUrl/api/appointments/reschedule/$id'),
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer $token',
+    },
+    body: jsonEncode({
+      'date': newDate,
+      'time': newTime,
+    }),
+  );
+  return response.statusCode == 200;
+}
+```

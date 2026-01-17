@@ -70,6 +70,13 @@ export const createAppointment = async (req, res) => {
       });
     }
 
+    // Populate for immediate use in Flutter UI
+    await appointment.populate({
+      path: "doctor_id",
+      populate: { path: "user_id", select: "name" }
+    });
+    await appointment.populate("clinic_id");
+
     return success(res, { appointment }, "Appointment created", 201);
   } catch (err) {
     return error(res, err.message, 500);
@@ -254,3 +261,50 @@ export const completeAppointment = async (req, res) => {
     return error(res, err.message, 500);
   }
 };
+
+/**
+ * Patient/Doctor/Admin – reschedule appointment
+ */
+export const rescheduleAppointment = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { start_time, date, time } = req.body;
+
+    let appointmentStartTime;
+    if (start_time) {
+      appointmentStartTime = new Date(start_time);
+    } else if (date && time) {
+      appointmentStartTime = new Date(`${date}T${time}:00`);
+    }
+
+    if (!appointmentStartTime || isNaN(appointmentStartTime.getTime())) {
+      return error(res, "Valid start_time or both date and time are required", 400);
+    }
+
+    const appointment = await Appointment.findById(id);
+    if (!appointment) return error(res, "Appointment not found", 404);
+
+    // Security: Only the patient who owns it (or staff) can reschedule
+    if (req.user.role === "patient") {
+      const patient = await Patient.findOne({ user_id: req.user.id });
+      if (!patient || appointment.patient_id.toString() !== patient._id.toString()) {
+        return error(res, "You cannot reschedule this appointment", 403);
+      }
+    }
+
+    appointment.start_time = appointmentStartTime;
+    appointment.status = "pending"; // Reset to pending when rescheduled?
+    await appointment.save();
+
+    await appointment.populate({
+      path: "doctor_id",
+      populate: { path: "user_id", select: "name" }
+    });
+    await appointment.populate("clinic_id");
+
+    return success(res, { appointment }, "Appointment rescheduled successfully");
+  } catch (err) {
+    return error(res, err.message, 500);
+  }
+};
+

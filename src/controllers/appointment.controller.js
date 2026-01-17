@@ -17,10 +17,19 @@ import {
  */
 export const createAppointment = async (req, res) => {
   try {
-    const { start_time, reason } = req.body;
+    const { start_time, date, time, reason } = req.body;
 
-    if (!start_time) {
-      return error(res, "start_time is required", 400);
+    let appointmentStartTime;
+
+    if (start_time) {
+      appointmentStartTime = new Date(start_time);
+    } else if (date && time) {
+      // Combine date (YYYY-MM-DD) and time (HH:mm)
+      appointmentStartTime = new Date(`${date}T${time}:00`);
+    }
+
+    if (!appointmentStartTime || isNaN(appointmentStartTime.getTime())) {
+      return error(res, "Valid start_time or both date and time are required", 400);
     }
 
     // find patient profile
@@ -43,7 +52,7 @@ export const createAppointment = async (req, res) => {
       doctor_id: doctor._id,
       patient_id: patient._id,
       clinic_id: clinic ? clinic._id : null,
-      start_time: new Date(start_time),
+      start_time: appointmentStartTime,
       reason,
       source: "patient_app"
     });
@@ -55,7 +64,7 @@ export const createAppointment = async (req, res) => {
         subject: "New Appointment Booked",
         html: appointmentCreatedTemplate({
           patientName: patient?.user_id?.name || "Patient",
-          date: appointment.start_time.toLocaleString()
+          date: appointment.start_time.toLocaleString('en-US', { hour12: true })
         })
       });
     }

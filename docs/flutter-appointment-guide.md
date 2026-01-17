@@ -15,6 +15,7 @@ Since the system currently operates as a **Single Doctor Clinic**, the backend a
 | `time`       | String (HH:mm)      | ✅ Yes\* | Appointment time (e.g., `14:30`)                            |
 | `start_time` | String (ISO 8601)   | -        | \*Alternative: both `date` + `time` OR single `start_time`. |
 | `reason`     | String              | No       | Reason for visit (e.g., "Checkup", "Pain", etc.)            |
+| `notes`      | String              | No       | Additional notes for the doctor                             |
 
 ---
 
@@ -27,11 +28,13 @@ class AppointmentRequest {
   final String date; // "2024-02-25"
   final String time; // "14:30"
   final String reason;
+  final String notes;
 
   AppointmentRequest({
     required this.date,
     required this.time,
     required this.reason,
+    this.notes = "",
   });
 
   Map<String, dynamic> toJson() {
@@ -39,6 +42,7 @@ class AppointmentRequest {
       'date': date,
       'time': time,
       'reason': reason,
+      'notes': notes,
     };
   }
 }
@@ -87,6 +91,7 @@ final request = AppointmentRequest(
   date: selectedDate,
   time: selectedTime,
   reason: "General Checkup",
+  notes: "I have been feeling dizzy lately.",
 );
 
 // 3. Call API

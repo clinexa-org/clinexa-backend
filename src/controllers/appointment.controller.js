@@ -17,7 +17,7 @@ import {
  */
 export const createAppointment = async (req, res) => {
   try {
-    const { start_time, date, time, reason } = req.body;
+    const { start_time, date, time, reason, notes } = req.body;
 
     let appointmentStartTime;
 
@@ -54,6 +54,7 @@ export const createAppointment = async (req, res) => {
       clinic_id: clinic ? clinic._id : null,
       start_time: appointmentStartTime,
       reason,
+      notes: notes || "",
       source: "patient_app"
     });
 

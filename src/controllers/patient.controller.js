@@ -10,16 +10,25 @@ export const upsertPatient = async (req, res) => {
   try {
     const { age, gender, phone, address } = req.body;
 
-    // Handle avatar - save to User model
-    if (req.file) {
+    // Handle user updates (avatar and name)
+    if (req.file || req.body.name) {
       const user = await User.findById(req.user.id);
       if (user) {
-        // Delete old avatar if exists
-        if (user.avatar_public_id) {
-          await cloudinary.uploader.destroy(user.avatar_public_id);
+        // Handle avatar upload
+        if (req.file) {
+          // Delete old avatar if exists
+          if (user.avatar_public_id) {
+            await cloudinary.uploader.destroy(user.avatar_public_id);
+          }
+          user.avatar = req.file.path;
+          user.avatar_public_id = req.file.filename;
         }
-        user.avatar = req.file.path;
-        user.avatar_public_id = req.file.filename;
+
+        // Handle name update
+        if (req.body.name) {
+          user.name = req.body.name;
+        }
+
         await user.save();
       }
     }

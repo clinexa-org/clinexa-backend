@@ -8,7 +8,9 @@ const userSchema = new mongoose.Schema(
     role: { type: String, enum: ["admin", "doctor", "patient"], default: "patient" },
     is_active: { type: Boolean, default: true },
     avatar: { type: String, default: "https://ui-avatars.com/api/?name=User&background=6366f1&color=fff&size=200" },
-    avatar_public_id: { type: String, default: null }
+    avatar_public_id: { type: String, default: null },
+    passwordResetOtp: { type: String, default: null },
+    passwordResetExpires: { type: Date, default: null }
   },
   { timestamps: true }
 );

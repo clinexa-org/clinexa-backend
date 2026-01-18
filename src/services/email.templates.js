@@ -70,3 +70,31 @@ export const appointmentCancelledTemplate = ({ date }) => `
     </div>
   </div>
 `;
+
+// Template للإيميل اللي بيروح للمريض لما يطلب reset password
+export const passwordResetOtpTemplate = ({ otp, expiresInMinutes }) => `
+  <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f4f4f4;">
+    <div style="background-color: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+      <h2 style="color: #3498db; border-bottom: 3px solid #3498db; padding-bottom: 10px;">
+        🔐 Password Reset Request
+      </h2>
+      <p style="font-size: 16px; color: #555; line-height: 1.6;">
+        You have requested to reset your password. Use the following OTP code:
+      </p>
+      <div style="background-color: #ebf5fb; padding: 20px; border-radius: 5px; margin: 20px 0; text-align: center; border-left: 4px solid #3498db;">
+        <p style="margin: 0; font-size: 32px; letter-spacing: 8px; color: #2c3e50; font-weight: bold;">${otp}</p>
+      </div>
+      <p style="font-size: 14px; color: #e74c3c; margin-top: 20px;">
+        ⚠️ This code will expire in <strong>${expiresInMinutes} minutes</strong>.
+      </p>
+      <p style="font-size: 14px; color: #7f8c8d; margin-top: 30px;">
+        If you did not request this password reset, please ignore this email or contact support.
+      </p>
+      <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #ecf0f1;">
+        <p style="font-size: 12px; color: #95a5a6; margin: 0;">
+          This is an automated message from Clinexa Clinic System.
+        </p>
+      </div>
+    </div>
+  </div>
+`;

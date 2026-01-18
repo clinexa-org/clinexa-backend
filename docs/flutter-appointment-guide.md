@@ -169,3 +169,106 @@ Future<bool> reschedule(String id, String newDate, String newTime) async {
   return response.statusCode == 200;
 }
 ```
+
+---
+
+## Cancel Appointment
+
+- **URL:** `PATCH /api/appointments/cancel/:id`
+- **Auth:** Bearer Token (Patient can only cancel their own)
+
+### Request Body (Optional)
+
+| Field    | Type   | Required | Description                        |
+| -------- | ------ | -------- | ---------------------------------- |
+| `reason` | String | No       | Reason for cancellation (optional) |
+
+### Response (200 Success)
+
+```json
+{
+  "status": "success",
+  "message": "Appointment cancelled",
+  "data": {
+    "appointment": {
+      "_id": "678abc...",
+      "status": "cancelled",
+      "cancelledAt": "2026-01-18T18:55:00.000Z",
+      "cancelledBy": {
+        "_id": "user123",
+        "name": "John Doe",
+        "email": "john@example.com",
+        "role": "patient"
+      },
+      "cancellationReason": "Schedule conflict",
+      ...
+    }
+  }
+}
+```
+
+### Error Responses
+
+| Status | Message                                 |
+| ------ | --------------------------------------- |
+| `400`  | "Appointment is already cancelled"      |
+| `400`  | "Cannot cancel a completed appointment" |
+| `403`  | "You cannot cancel this appointment"    |
+| `404`  | "Appointment not found"                 |
+
+### Flutter Implementation
+
+```dart
+Future<bool> cancelAppointment(String id, {String? reason}) async {
+  try {
+    final response = await http.patch(
+      Uri.parse('$baseUrl/api/appointments/cancel/$id'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+      body: reason != null ? jsonEncode({'reason': reason}) : null,
+    );
+
+    if (response.statusCode == 200) {
+      print("✅ Appointment Cancelled!");
+      return true;
+    } else {
+      final data = jsonDecode(response.body);
+      print("❌ Error: ${data['message']}");
+      return false;
+    }
+  } catch (e) {
+    print("❌ Exception: $e");
+    return false;
+  }
+}
+```
+
+### Usage Example
+
+```dart
+// Cancel with reason
+final success = await cancelAppointment(
+  appointmentId,
+  reason: "Schedule conflict",
+);
+
+// Cancel without reason
+final success = await cancelAppointment(appointmentId);
+
+if (success) {
+  // Refresh appointments list
+  // Show success snackbar
+}
+```
+
+### UI Logic: Cancel Button Visibility
+
+Only show the Cancel button for appointments that are **not** already cancelled or completed:
+
+```dart
+if (appointment.status != 'cancelled' && appointment.status != 'completed') {
+  // Show Cancel button
+}
+```

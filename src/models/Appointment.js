@@ -37,6 +37,19 @@ const appointmentSchema = new mongoose.Schema(
       type: String,
       enum: ["patient_app", "admin_panel", "doctor_panel"],
       default: "patient_app"
+    },
+    cancelledAt: {
+      type: Date,
+      default: null
+    },
+    cancelledBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      default: null
+    },
+    cancellationReason: {
+      type: String,
+      default: null
     }
   },
   { timestamps: true }

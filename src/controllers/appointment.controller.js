@@ -213,8 +213,18 @@ export const confirmAppointment = async (req, res) => {
  */
 export const cancelAppointment = async (req, res) => {
   try {
+    const { reason } = req.body; // optional cancellation reason
+    
     const appointment = await Appointment.findById(req.params.id);
     if (!appointment) return error(res, "Appointment not found", 404);
+
+    // Guard: Cannot cancel already cancelled or completed appointments
+    if (appointment.status === "cancelled") {
+      return error(res, "Appointment is already cancelled", 400);
+    }
+    if (appointment.status === "completed") {
+      return error(res, "Cannot cancel a completed appointment", 400);
+    }
 
     if (req.user.role === "patient") {
       const patient = await Patient.findOne({ user_id: req.user.id });
@@ -224,6 +234,9 @@ export const cancelAppointment = async (req, res) => {
     }
 
     appointment.status = "cancelled";
+    appointment.cancelledAt = new Date();
+    appointment.cancelledBy = req.user.id;
+    appointment.cancellationReason = reason || null;
     await appointment.save();
 
     const patient = await Patient.findById(appointment.patient_id).populate("user_id");
@@ -239,11 +252,15 @@ export const cancelAppointment = async (req, res) => {
       });
     }
 
+    // Populate for Flutter UI
+    await appointment.populate("cancelledBy", "name email role");
+
     return success(res, { appointment }, "Appointment cancelled");
   } catch (err) {
     return error(res, err.message, 500);
   }
 };
+
 
 /**
  * Doctor/Admin – complete appointment

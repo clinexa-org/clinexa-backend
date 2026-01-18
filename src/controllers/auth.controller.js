@@ -1,6 +1,7 @@
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import User from "../models/User.js";
+import Patient from "../models/Patient.js";
 import { success, error } from "../utils/response.js";
 import { sendEmail } from "../services/email.service.js";
 import { passwordResetOtpTemplate } from "../services/email.templates.js";
@@ -24,6 +25,13 @@ export const register = async (req, res) => {
       role: role || "patient",
       avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=6366f1&color=fff&size=200`,
     });
+
+    // Validations for role-based profile creation
+    if (user.role === "patient") {
+      await Patient.create({
+        user_id: user._id,
+      });
+    }
 
     const token = jwt.sign(
       { id: user._id, role: user.role },

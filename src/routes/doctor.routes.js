@@ -1,7 +1,7 @@
 import express from "express";
 import { auth } from "../middleware/auth.js";
 import { role } from "../middleware/role.js";
-import { upload } from "../middleware/upload.middleware.js";
+import upload from "../middleware/upload.middleware.js";
 import {
   upsertDoctor,
   getMyDoctorProfile,

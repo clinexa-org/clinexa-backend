@@ -12,8 +12,141 @@ import {
 } from "../services/email.templates.js";
 
 /**
+ * Helper: Generate available slots for a date based on working hours
+ */
+const generateSlotsForDate = (clinic, dateStr) => {
+  const slots = [];
+  const dayMap = { 0: "sun", 1: "mon", 2: "tue", 3: "wed", 4: "thu", 5: "fri", 6: "sat" };
+
+  const targetDate = new Date(dateStr);
+  const dayOfWeek = dayMap[targetDate.getDay()];
+
+  // Check for exceptions first
+  const exception = clinic.exceptions?.find(e => e.date === dateStr);
+  
+  if (exception) {
+    if (exception.type === "closed") {
+      return []; // Day off
+    }
+    // Custom hours for this date
+    return generateSlotsFromHours(dateStr, exception.from, exception.to, clinic.slotDurationMinutes);
+  }
+
+  // Check weekly schedule
+  const dayConfig = clinic.weekly?.find(d => d.day === dayOfWeek);
+  if (!dayConfig || !dayConfig.enabled) {
+    return []; // Not a working day
+  }
+
+  return generateSlotsFromHours(dateStr, dayConfig.from, dayConfig.to, clinic.slotDurationMinutes);
+};
+
+/**
+ * Helper: Generate time slots from start/end time
+ */
+const generateSlotsFromHours = (dateStr, fromTime, toTime, slotDuration) => {
+  const slots = [];
+  const [fromHour, fromMin] = fromTime.split(":").map(Number);
+  const [toHour, toMin] = toTime.split(":").map(Number);
+
+  let current = new Date(`${dateStr}T${fromTime}:00`);
+  const end = new Date(`${dateStr}T${toTime}:00`);
+
+  while (current < end) {
+    slots.push(current.toISOString());
+    current = new Date(current.getTime() + slotDuration * 60 * 1000);
+  }
+
+  return slots;
+};
+
+/**
+ * Helper: Check if a slot is within working hours
+ */
+const isSlotWithinWorkingHours = (clinic, slotTime) => {
+  const dayMap = { 0: "sun", 1: "mon", 2: "tue", 3: "wed", 4: "thu", 5: "fri", 6: "sat" };
+  const slotDate = new Date(slotTime);
+  const dateStr = slotDate.toISOString().split("T")[0];
+  const dayOfWeek = dayMap[slotDate.getDay()];
+  const slotTimeStr = slotDate.toTimeString().slice(0, 5); // HH:mm
+
+  // Check exceptions first
+  const exception = clinic.exceptions?.find(e => e.date === dateStr);
+  if (exception) {
+    if (exception.type === "closed") {
+      return { valid: false, reason: "Clinic is closed on this date" };
+    }
+    // Custom hours
+    if (slotTimeStr < exception.from || slotTimeStr >= exception.to) {
+      return { valid: false, reason: "Slot is outside custom working hours for this date" };
+    }
+    return { valid: true };
+  }
+
+  // Check weekly schedule
+  const dayConfig = clinic.weekly?.find(d => d.day === dayOfWeek);
+  if (!dayConfig || !dayConfig.enabled) {
+    return { valid: false, reason: "Clinic is closed on this day" };
+  }
+
+  if (slotTimeStr < dayConfig.from || slotTimeStr >= dayConfig.to) {
+    return { valid: false, reason: "Slot is outside working hours" };
+  }
+
+  return { valid: true };
+};
+
+/**
+ * Patient: Get available slots for a date
+ */
+export const getAvailableSlots = async (req, res) => {
+  try {
+    const { date } = req.query;
+
+    if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+      return error(res, "date query param is required in YYYY-MM-DD format", 400);
+    }
+
+    // Single doctor V1
+    const doctor = await Doctor.findOne();
+    if (!doctor) return error(res, "No doctor available", 404);
+
+    const clinic = await Clinic.findOne({ doctor_id: doctor._id });
+    if (!clinic) return error(res, "Clinic not configured", 404);
+
+    // Generate all possible slots for this date
+    const allSlots = generateSlotsForDate(clinic, date);
+
+    // Get booked slots (non-cancelled)
+    const startOfDay = new Date(`${date}T00:00:00`);
+    const endOfDay = new Date(`${date}T23:59:59`);
+
+    const bookedAppointments = await Appointment.find({
+      doctor_id: doctor._id,
+      start_time: { $gte: startOfDay, $lte: endOfDay },
+      status: { $in: ["pending", "confirmed", "completed"] }
+    }).select("start_time");
+
+    const bookedTimes = new Set(bookedAppointments.map(a => a.start_time.toISOString()));
+
+    // Filter available slots
+    const availableSlots = allSlots.filter(slot => !bookedTimes.has(slot));
+
+    return success(res, {
+      date,
+      timezone: clinic.timezone,
+      slotDurationMinutes: clinic.slotDurationMinutes,
+      slots: availableSlots
+    });
+  } catch (err) {
+    return error(res, err.message, 500);
+  }
+};
+
+/**
  * Patient creates appointment
  * Single-doctor system → backend picks doctor automatically
+ * Now includes conflict checking and working hours validation
  */
 export const createAppointment = async (req, res) => {
   try {
@@ -48,36 +181,64 @@ export const createAppointment = async (req, res) => {
       clinic = await Clinic.findOne({ doctor_id: doctor._id });
     }
 
-    const appointment = await Appointment.create({
-      doctor_id: doctor._id,
-      patient_id: patient._id,
-      clinic_id: clinic ? clinic._id : null,
-      start_time: appointmentStartTime,
-      reason,
-      notes: notes || "",
-      source: "patient_app"
-    });
-
-    // Email → Doctor (appointment created)
-    if (doctor?.user_id?.email) {
-      await sendEmail({
-        to: doctor.user_id.email,
-        subject: "New Appointment Booked",
-        html: appointmentCreatedTemplate({
-          patientName: patient?.user_id?.name || "Patient",
-          date: appointment.start_time.toLocaleString('en-US', { hour12: true })
-        })
-      });
+    // SCHEDULING VALIDATION: Check if slot is within working hours
+    if (clinic) {
+      const workingHoursCheck = isSlotWithinWorkingHours(clinic, appointmentStartTime);
+      if (!workingHoursCheck.valid) {
+        return error(res, workingHoursCheck.reason, 409);
+      }
     }
 
-    // Populate for immediate use in Flutter UI
-    await appointment.populate({
-      path: "doctor_id",
-      populate: { path: "user_id", select: "name" }
+    // CONFLICT CHECK: The unique index will prevent duplicates at DB level
+    // But we also check here for a better error message
+    const existingAppointment = await Appointment.findOne({
+      doctor_id: doctor._id,
+      start_time: appointmentStartTime,
+      status: { $in: ["pending", "confirmed", "completed"] }
     });
-    await appointment.populate("clinic_id");
 
-    return success(res, { appointment }, "Appointment created", 201);
+    if (existingAppointment) {
+      return error(res, "This time slot is already booked", 409);
+    }
+
+    try {
+      const appointment = await Appointment.create({
+        doctor_id: doctor._id,
+        patient_id: patient._id,
+        clinic_id: clinic ? clinic._id : null,
+        start_time: appointmentStartTime,
+        reason,
+        notes: notes || "",
+        source: "patient_app"
+      });
+
+      // Email → Doctor (appointment created)
+      if (doctor?.user_id?.email) {
+        await sendEmail({
+          to: doctor.user_id.email,
+          subject: "New Appointment Booked",
+          html: appointmentCreatedTemplate({
+            patientName: patient?.user_id?.name || "Patient",
+            date: appointment.start_time.toLocaleString('en-US', { hour12: true })
+          })
+        });
+      }
+
+      // Populate for immediate use in Flutter UI
+      await appointment.populate({
+        path: "doctor_id",
+        populate: { path: "user_id", select: "name" }
+      });
+      await appointment.populate("clinic_id");
+
+      return success(res, { appointment }, "Appointment created", 201);
+    } catch (dbErr) {
+      // Handle MongoDB duplicate key error (race condition safety)
+      if (dbErr.code === 11000) {
+        return error(res, "This time slot is already booked", 409);
+      }
+      throw dbErr;
+    }
   } catch (err) {
     return error(res, err.message, 500);
   }
@@ -112,7 +273,7 @@ export const getMyAppointments = async (req, res) => {
 export const getDoctorAppointments = async (req, res) => {
   try {
     const doctor = await Doctor.findOne({ user_id: req.user.id });
-    if (!doctor) return error(res, "Doctor profile not found", 404);
+    if (!doctor) return success(res, { appointments: [] });
 
     const query = { doctor_id: doctor._id };
 
@@ -127,7 +288,8 @@ export const getDoctorAppointments = async (req, res) => {
     const appointments = await Appointment.find(query)
       .populate({
         path: "patient_id",
-        populate: { path: "user_id" }
+        select: "age gender phone address",
+        populate: { path: "user_id", select: "name email avatar" }
       })
       .populate("clinic_id")
       .sort({ start_time: 1 });
@@ -183,10 +345,23 @@ export const confirmAppointment = async (req, res) => {
     const appointment = await Appointment.findById(req.params.id);
     if (!appointment) return error(res, "Appointment not found", 404);
 
+    if (appointment.status !== "pending") {
+      return error(res, "Only pending appointments can be confirmed", 409);
+    }
+
+    // Role-based ownership check
+    if (req.user.role === "doctor") {
+      const doctor = await Doctor.findOne({ user_id: req.user.id });
+      if (!doctor || appointment.doctor_id.toString() !== doctor._id.toString()) {
+        return error(res, "You cannot confirm this appointment", 403);
+      }
+    }
+
     appointment.status = "confirmed";
     await appointment.save();
 
-    const doctor = await Doctor.findOne().populate("user_id");
+    // Populate for email template
+    const doctor = await Doctor.findById(appointment.doctor_id).populate("user_id");
     const patient = await Patient.findById(appointment.patient_id).populate("user_id");
 
     // Email → Patient (appointment confirmed)
@@ -210,25 +385,31 @@ export const confirmAppointment = async (req, res) => {
 /**
  * Patient/Doctor/Admin – cancel appointment
  * patient can only cancel his own appointment
+ * Cancelling FREES the slot for rebooking
  */
 export const cancelAppointment = async (req, res) => {
   try {
-    const { reason } = req.body; // optional cancellation reason
+    const { reason } = req.body;
     
     const appointment = await Appointment.findById(req.params.id);
     if (!appointment) return error(res, "Appointment not found", 404);
 
-    // Guard: Cannot cancel already cancelled or completed appointments
     if (appointment.status === "cancelled") {
-      return error(res, "Appointment is already cancelled", 400);
+      return error(res, "Appointment is already cancelled", 409);
     }
     if (appointment.status === "completed") {
-      return error(res, "Cannot cancel a completed appointment", 400);
+      return error(res, "Cannot cancel a completed appointment", 409);
     }
 
+    // Role-based ownership check
     if (req.user.role === "patient") {
       const patient = await Patient.findOne({ user_id: req.user.id });
       if (!patient || appointment.patient_id.toString() !== patient._id.toString()) {
+        return error(res, "You cannot cancel this appointment", 403);
+      }
+    } else if (req.user.role === "doctor") {
+      const doctor = await Doctor.findOne({ user_id: req.user.id });
+      if (!doctor || appointment.doctor_id.toString() !== doctor._id.toString()) {
         return error(res, "You cannot cancel this appointment", 403);
       }
     }
@@ -241,7 +422,6 @@ export const cancelAppointment = async (req, res) => {
 
     const patient = await Patient.findById(appointment.patient_id).populate("user_id");
 
-    // Email → Patient (appointment cancelled)
     if (patient?.user_id?.email) {
       await sendEmail({
         to: patient.user_id.email,
@@ -252,7 +432,6 @@ export const cancelAppointment = async (req, res) => {
       });
     }
 
-    // Populate for Flutter UI
     await appointment.populate("cancelledBy", "name email role");
 
     return success(res, { appointment }, "Appointment cancelled");
@@ -261,7 +440,6 @@ export const cancelAppointment = async (req, res) => {
   }
 };
 
-
 /**
  * Doctor/Admin – complete appointment
  */
@@ -269,6 +447,17 @@ export const completeAppointment = async (req, res) => {
   try {
     const appointment = await Appointment.findById(req.params.id);
     if (!appointment) return error(res, "Appointment not found", 404);
+
+    if (appointment.status !== "confirmed") {
+      return error(res, "Only confirmed appointments can be completed", 409);
+    }
+
+    if (req.user.role === "doctor") {
+      const doctor = await Doctor.findOne({ user_id: req.user.id });
+      if (!doctor || appointment.doctor_id.toString() !== doctor._id.toString()) {
+        return error(res, "You cannot complete this appointment", 403);
+      }
+    }
 
     appointment.status = "completed";
     await appointment.save();
@@ -301,7 +490,6 @@ export const rescheduleAppointment = async (req, res) => {
     const appointment = await Appointment.findById(id);
     if (!appointment) return error(res, "Appointment not found", 404);
 
-    // Security: Only the patient who owns it (or staff) can reschedule
     if (req.user.role === "patient") {
       const patient = await Patient.findOne({ user_id: req.user.id });
       if (!patient || appointment.patient_id.toString() !== patient._id.toString()) {
@@ -309,8 +497,20 @@ export const rescheduleAppointment = async (req, res) => {
       }
     }
 
+    // Check for conflicts at new time
+    const existingAppointment = await Appointment.findOne({
+      _id: { $ne: appointment._id },
+      doctor_id: appointment.doctor_id,
+      start_time: appointmentStartTime,
+      status: { $in: ["pending", "confirmed", "completed"] }
+    });
+
+    if (existingAppointment) {
+      return error(res, "The new time slot is already booked", 409);
+    }
+
     appointment.start_time = appointmentStartTime;
-    appointment.status = "pending"; // Reset to pending when rescheduled?
+    appointment.status = "pending";
     await appointment.save();
 
     await appointment.populate({
@@ -321,7 +521,9 @@ export const rescheduleAppointment = async (req, res) => {
 
     return success(res, { appointment }, "Appointment rescheduled successfully");
   } catch (err) {
+    if (err.code === 11000) {
+      return error(res, "The new time slot is already booked", 409);
+    }
     return error(res, err.message, 500);
   }
 };
-

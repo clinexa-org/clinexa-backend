@@ -9,10 +9,14 @@ import {
   confirmAppointment,
   cancelAppointment,
   completeAppointment,
-  rescheduleAppointment
+  rescheduleAppointment,
+  getAvailableSlots
 } from "../controllers/appointment.controller.js";
 
 const router = express.Router();
+
+// Patient: get available slots for a date
+router.get("/available", auth, role("patient"), getAvailableSlots);
 
 // Patient: create appointment (single-doctor system)
 router.post("/", auth, role("patient"), createAppointment);

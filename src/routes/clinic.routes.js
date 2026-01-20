@@ -4,7 +4,9 @@ import { role } from "../middleware/role.js";
 import {
   upsertClinic,
   getMyClinic,
-  getClinicByDoctor
+  getClinicByDoctor,
+  getMyWorkingHours,
+  updateMyWorkingHours
 } from "../controllers/clinic.controller.js";
 
 const router = express.Router();
@@ -14,6 +16,10 @@ router.post("/", auth, role("doctor"), upsertClinic);
 
 // Get my clinic
 router.get("/me", auth, role("doctor"), getMyClinic);
+
+// Working hours routes
+router.get("/working-hours/me", auth, role("doctor"), getMyWorkingHours);
+router.put("/working-hours/me", auth, role("doctor"), updateMyWorkingHours);
 
 // Public - get clinic for specific doctor
 router.get("/:doctorId", getClinicByDoctor);

@@ -55,4 +55,16 @@ const appointmentSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+// Partial unique index: Prevents double-booking for non-cancelled appointments
+// Only one appointment per (doctor_id, start_time) where status is NOT 'cancelled'
+appointmentSchema.index(
+  { doctor_id: 1, start_time: 1 },
+  {
+    unique: true,
+    partialFilterExpression: {
+      status: { $in: ["pending", "confirmed", "completed"] }
+    }
+  }
+);
+
 export default mongoose.model("Appointment", appointmentSchema);

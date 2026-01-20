@@ -42,6 +42,17 @@ export const createPrescription = async (req, res) => {
       if (appointment.patient_id.toString() !== patient._id.toString()) {
         return error(res, "Appointment does not belong to this patient", 400);
       }
+
+      // Enforce: Appointment must be completed
+      if (appointment.status !== "completed") {
+        return error(res, "Cannot create prescription for an incomplete appointment", 409);
+      }
+
+      // CARDINALITY CHECK: One prescription per appointment
+      const existingPrescription = await Prescription.findOne({ appointment_id });
+      if (existingPrescription) {
+        return error(res, "Prescription already exists for this appointment", 409);
+      }
     }
 
     const prescription = await Prescription.create({
@@ -109,6 +120,14 @@ export const getPrescriptionById = async (req, res) => {
       ) {
         return error(res, "Access denied", 403);
       }
+    } else if (req.user.role === "doctor") {
+      const doctor = await Doctor.findOne({ user_id: req.user.id });
+      if (
+        !doctor ||
+        prescription.doctor_id._id.toString() !== doctor._id.toString()
+      ) {
+        return error(res, "Access denied", 403);
+      }
     }
 
     return success(res, { prescription });
@@ -123,6 +142,21 @@ export const getPrescriptionById = async (req, res) => {
 export const getPrescriptionsByPatient = async (req, res) => {
   try {
     const { patientId } = req.params;
+
+    // Security: If doctor, ensure they have at least one appointment with this patient
+    if (req.user.role === "doctor") {
+      const doctor = await Doctor.findOne({ user_id: req.user.id });
+      if (!doctor) return error(res, "Doctor profile not found", 404);
+
+      const hasAppointment = await Appointment.findOne({
+        doctor_id: doctor._id,
+        patient_id: patientId
+      });
+
+      if (!hasAppointment) {
+        return error(res, "You do not have access to this patient's prescriptions", 403);
+      }
+    }
 
     const prescriptions = await Prescription.find({ patient_id: patientId })
       .populate("doctor_id")

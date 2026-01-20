@@ -22,7 +22,7 @@ export const register = async (req, res) => {
       name,
       email,
       passwordHash,
-      role: role || "patient",
+      role: "patient", // Force role to be patient
       avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=6366f1&color=fff&size=200`,
     });
 

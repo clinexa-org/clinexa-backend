@@ -2,7 +2,7 @@ import Doctor from "../models/Doctor.js";
 import Clinic from "../models/Clinic.js";
 import User from "../models/User.js";
 import Appointment from "../models/Appointment.js";
-import { v2 as cloudinary } from "cloudinary"; // Make sure to install cloudinary v2
+import cloudinary from "../config/cloudinary.js";
 import { success, error } from "../utils/response.js";
 
 /**

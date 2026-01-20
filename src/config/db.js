@@ -13,18 +13,32 @@ if (!cached) {
 }
 
 const connectDB = async () => {
-  try {
-    if (cached.conn) return cached.conn;
+  // If already connected, return immediately
+  if (cached.conn && mongoose.connection.readyState === 1) {
+    return cached.conn;
+  }
 
-    if (!cached.promise) {
-      cached.promise = mongoose.connect(MONGO_URI, {
-        serverSelectionTimeoutMS: 10000
-      });
+  // If a connection is in progress, wait for it
+  if (cached.promise) {
+    try {
+      cached.conn = await cached.promise;
+      return cached.conn;
+    } catch (err) {
+      cached.promise = null; // Reset on error
+      throw err;
     }
+  }
+
+  // Start new connection
+  try {
+    cached.promise = mongoose.connect(MONGO_URI, {
+      serverSelectionTimeoutMS: 15000, // Increased for cold starts
+      socketTimeoutMS: 45000,
+      maxPoolSize: 10,
+    });
 
     cached.conn = await cached.promise;
 
-    // اختياري: اطبع مرة واحدة
     if (process.env.NODE_ENV !== "production") {
       console.log("MongoDB Connected Successfully");
     }
@@ -33,7 +47,7 @@ const connectDB = async () => {
   } catch (error) {
     cached.promise = null; // reset so next request can retry
     console.error("MongoDB Connection Error:", error?.message || error);
-    throw error; // مهم: خلي Vercel يرجّع 500 بدل ما يكمّل بـ app فاضي
+    throw error;
   }
 };
 

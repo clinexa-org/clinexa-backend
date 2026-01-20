@@ -1,6 +1,7 @@
 import Doctor from "../models/Doctor.js";
 import Clinic from "../models/Clinic.js";
 import User from "../models/User.js";
+import Appointment from "../models/Appointment.js";
 import { success, error } from "../utils/response.js";
 
 /**
@@ -63,6 +64,34 @@ export const updateDoctor = async (req, res) => {
     );
 
     return success(res, { doctor }, "Doctor updated successfully");
+  } catch (err) {
+    return error(res, err.message);
+  }
+};
+
+/**
+ * Get Doctor Stats (Dashboard)
+ */
+export const getDoctorStats = async (req, res) => {
+  try {
+    const doctor = await Doctor.findOne({ user_id: req.user.id });
+    if (!doctor) return error(res, "Doctor profile not found", 404);
+
+    const appointmentsCount = await Appointment.countDocuments({ 
+      doctor_id: doctor._id,
+      status: { $ne: "cancelled" }
+    });
+    
+    // Count unique patients
+    const patients = await Appointment.distinct("patient_id", { doctor_id: doctor._id });
+    
+    // Basic stats for now
+    return success(res, {
+      appointments: appointmentsCount,
+      patients: patients.length,
+      rating: 4.9, // Placeholder
+      reviews: 24  // Placeholder
+    });
   } catch (err) {
     return error(res, err.message);
   }

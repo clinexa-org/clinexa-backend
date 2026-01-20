@@ -6,7 +6,8 @@ import {
   getMyDoctorProfile,
   updateDoctor,
   getAllDoctors,
-  getDoctorById
+  getDoctorById,
+  getDoctorStats
 } from "../controllers/doctor.controller.js";
 
 const router = express.Router();
@@ -23,6 +24,9 @@ router.put("/", auth, role("doctor"), updateDoctor);
 
 // Public — Get all doctors
 router.get("/", getAllDoctors);
+
+// Doctor Stats (Dashboard) - MUST be before /:id
+router.get("/stats", auth, role("doctor"), getDoctorStats);
 
 // Public — Get one doctor
 router.get("/:id", getDoctorById);

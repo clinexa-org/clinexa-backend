@@ -8,6 +8,7 @@ import {
   getPrescriptionsByPatient,
   getPrescriptionsByAppointment,
   getMyPrescriptions,
+  getDoctorPrescriptions,
   adminGetPrescriptions
 } from "../controllers/prescription.controller.js";
 
@@ -32,8 +33,14 @@ router.get(
   getPrescriptionsByAppointment
 );
 
-// Admin: get all prescriptions
-router.get("/", auth, role("admin"), adminGetPrescriptions);
+// Doctor: get all prescriptions I wrote
+router.get("/", auth, role("doctor", "admin"), (req, res, next) => {
+  if (req.user.role === "admin") {
+    return adminGetPrescriptions(req, res);
+  } else {
+    return getDoctorPrescriptions(req, res);
+  }
+});
 
 // Doctor: create prescription
 router.post("/", auth, role("doctor"), createPrescription);

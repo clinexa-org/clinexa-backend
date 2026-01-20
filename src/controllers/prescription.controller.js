@@ -12,6 +12,30 @@ import { success, error } from "../utils/response.js";
  *  - notes (optional)
  *  - items: [{ name, dosage, duration, instructions }]
  */
+
+/**
+ * Doctor – get my written prescriptions
+ */
+export const getDoctorPrescriptions = async (req, res) => {
+  try {
+    const doctor = await Doctor.findOne({ user_id: req.user.id });
+    if (!doctor) return error(res, "Doctor profile not found", 404);
+
+    const prescriptions = await Prescription.find({ doctor_id: doctor._id })
+      .populate("doctor_id")
+      .populate({
+        path: "patient_id",
+        populate: { path: "user_id", select: "name email avatar" }
+      })
+      .populate("appointment_id")
+      .sort({ createdAt: -1 });
+
+    return success(res, { prescriptions });
+  } catch (err) {
+    return error(res, err.message, 500);
+  }
+};
+
 export const createPrescription = async (req, res) => {
   try {
     const { patient_id, appointment_id, notes, items } = req.body;

@@ -2,6 +2,7 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import User from "../models/User.js";
 import Patient from "../models/Patient.js";
+import Doctor from "../models/Doctor.js";
 import { success, error } from "../utils/response.js";
 import { sendEmail } from "../services/email.service.js";
 import { passwordResetOtpTemplate } from "../services/email.templates.js";
@@ -22,7 +23,7 @@ export const register = async (req, res) => {
       name,
       email,
       passwordHash,
-      role: "patient", // Force role to be patient
+      role: role || "patient", // Allow role input, default to patient
       avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=6366f1&color=fff&size=200`,
     });
 
@@ -30,6 +31,13 @@ export const register = async (req, res) => {
     if (user.role === "patient") {
       await Patient.create({
         user_id: user._id,
+      });
+    } else if (user.role === "doctor") {
+      await Doctor.create({
+        user_id: user._id,
+        specialty: "General", // Default
+        bio: "Bio not added yet",
+        years_of_experience: 0
       });
     }
 

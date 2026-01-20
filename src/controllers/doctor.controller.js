@@ -2,6 +2,7 @@ import Doctor from "../models/Doctor.js";
 import Clinic from "../models/Clinic.js";
 import User from "../models/User.js";
 import Appointment from "../models/Appointment.js";
+import { v2 as cloudinary } from "cloudinary"; // Make sure to install cloudinary v2
 import { success, error } from "../utils/response.js";
 
 /**
@@ -42,7 +43,9 @@ export const upsertDoctor = async (req, res) => {
  */
 export const getMyDoctorProfile = async (req, res) => {
   try {
-    const doctor = await Doctor.findOne({ user_id: req.user.id }).populate("clinic_id");
+    const doctor = await Doctor.findOne({ user_id: req.user.id })
+      .populate("clinic_id")
+      .populate("user_id", "name email avatar role");
 
     return success(res, { doctor });
   } catch (err) {
@@ -55,15 +58,38 @@ export const getMyDoctorProfile = async (req, res) => {
  */
 export const updateDoctor = async (req, res) => {
   try {
-    const { specialty, bio, years_of_experience } = req.body;
+    const { specialty, bio, years_of_experience, name } = req.body;
 
-    const doctor = await Doctor.findOneAndUpdate(
-      { user_id: req.user.id },
-      { specialty, bio, years_of_experience },
-      { new: true }
-    );
+    // 1. Update Doctor Profile
+    const doctor = await Doctor.findOne({ user_id: req.user.id });
+    if (!doctor) return error(res, "Doctor profile not found (please re-register if issue persists)", 404);
 
-    return success(res, { doctor }, "Doctor updated successfully");
+    if (specialty !== undefined) doctor.specialty = specialty;
+    if (bio !== undefined) doctor.bio = bio;
+    if (years_of_experience !== undefined) doctor.years_of_experience = years_of_experience;
+
+    await doctor.save();
+
+    // 2. Update User Profile (Name, Avatar)
+    const user = await User.findById(req.user.id);
+    if (name) user.name = name;
+
+    if (req.file) {
+      // Destroy old avatar if exists (optional but good practice)
+      if (user.avatar_public_id) {
+        await cloudinary.uploader.destroy(user.avatar_public_id);
+      }
+      user.avatar = req.file.path;
+      user.avatar_public_id = req.file.filename;
+    }
+    await user.save();
+
+    // 3. Return combined data
+    await doctor.populate("user_id", "name email avatar");
+
+    return success(res, { doctor }, "Doctor profile updated successfully");
+
+
   } catch (err) {
     return error(res, err.message);
   }

@@ -100,10 +100,20 @@ export const login = async (req, res) => {
  */
 export const me = async (req, res) => {
   try {
+    if (!req.user || !req.user.id) {
+      return error(res, "Invalid token", 401);
+    }
+    
     const user = await User.findById(req.user.id).select("-passwordHash");
+    
+    if (!user) {
+      return error(res, "User not found", 404);
+    }
+    
     return success(res, { user });
   } catch (err) {
-    return error(res, "Invalid token", 401);
+    console.error("ME endpoint error:", err.message);
+    return error(res, err.message, 500);
   }
 };
 

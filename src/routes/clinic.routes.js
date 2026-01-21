@@ -13,6 +13,7 @@ const router = express.Router();
 
 // Doctor creates or updates clinic
 router.post("/", auth, role("doctor"), upsertClinic);
+router.put("/", auth, role("doctor"), upsertClinic);
 
 // Get my clinic
 router.get("/me", auth, role("doctor"), getMyClinic);

@@ -7,7 +7,7 @@ import { success, error } from "../utils/response.js";
  */
 export const upsertClinic = async (req, res) => {
   try {
-    const { name, address, city, phone, location_link } = req.body;
+    const { name, address, city, phone, location_link, slot_duration } = req.body;
 
     // Doctor must exist
     const doctor = await Doctor.findOne({ user_id: req.user.id });
@@ -17,11 +17,12 @@ export const upsertClinic = async (req, res) => {
     let clinic = await Clinic.findOne({ doctor_id: doctor._id });
 
     if (clinic) {
-      clinic.name = name;
-      clinic.address = address;
-      clinic.city = city;
-      clinic.phone = phone;
-      clinic.location_link = location_link;
+      if (name) clinic.name = name;
+      if (address) clinic.address = address;
+      if (city) clinic.city = city;
+      if (phone) clinic.phone = phone;
+      if (location_link !== undefined) clinic.location_link = location_link;
+      if (slot_duration) clinic.slotDurationMinutes = slot_duration;
 
       await clinic.save();
     } else {
@@ -30,9 +31,10 @@ export const upsertClinic = async (req, res) => {
         doctor_id: doctor._id,
         name,
         address,
-        city,
+        city: city || "",
         phone,
-        location_link
+        location_link,
+        slotDurationMinutes: slot_duration || 30
       });
 
       // Link clinic to doctor

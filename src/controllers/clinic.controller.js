@@ -106,7 +106,7 @@ export const getMyWorkingHours = async (req, res) => {
  */
 export const updateMyWorkingHours = async (req, res) => {
   try {
-    const { timezone, slotDurationMinutes, weekly, exceptions } = req.body;
+    const { timezone, slotDurationMinutes, weekly, exceptions, working_hours, slot_duration } = req.body;
 
     const doctor = await Doctor.findOne({ user_id: req.user.id });
     if (!doctor) return error(res, "Doctor profile not found", 404);
@@ -114,24 +114,44 @@ export const updateMyWorkingHours = async (req, res) => {
     const clinic = await Clinic.findOne({ doctor_id: doctor._id });
     if (!clinic) return error(res, "Clinic not found. Please create your clinic first.", 404);
 
+    // Handle slot_duration alias
+    let finalSlotDuration = slotDurationMinutes;
+    if (slot_duration !== undefined) finalSlotDuration = slot_duration;
+
     // Validate slotDurationMinutes
-    if (slotDurationMinutes !== undefined) {
-      if (slotDurationMinutes < 10 || slotDurationMinutes > 120) {
+    if (finalSlotDuration !== undefined) {
+      if (finalSlotDuration < 10 || finalSlotDuration > 120) {
         return error(res, "slotDurationMinutes must be between 10 and 120", 400);
       }
-      clinic.slotDurationMinutes = slotDurationMinutes;
+      clinic.slotDurationMinutes = finalSlotDuration;
     }
 
     if (timezone !== undefined) {
       clinic.timezone = timezone;
     }
 
-    if (weekly !== undefined) {
+    // Handle working_hours mapping
+    let finalWeekly = weekly;
+    if (working_hours && Array.isArray(working_hours)) {
+      const dayMap = {
+        "saturday": "sat", "sunday": "sun", "monday": "mon", "tuesday": "tue",
+        "wednesday": "wed", "thursday": "thu", "friday": "fri"
+      };
+
+      finalWeekly = working_hours.map(wh => ({
+        day: dayMap[wh.day_of_week.toLowerCase()] || wh.day_of_week.substr(0, 3).toLowerCase(),
+        enabled: wh.is_open,
+        from: wh.start_time || "09:00",
+        to: wh.end_time || "17:00"
+      }));
+    }
+
+    if (finalWeekly !== undefined) {
       // Validate weekly structure
-      if (!Array.isArray(weekly)) {
+      if (!Array.isArray(finalWeekly)) {
         return error(res, "weekly must be an array", 400);
       }
-      clinic.weekly = weekly;
+      clinic.weekly = finalWeekly;
     }
 
     if (exceptions !== undefined) {

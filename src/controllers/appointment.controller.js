@@ -288,13 +288,30 @@ export const getDoctorAppointments = async (req, res) => {
     const appointments = await Appointment.find(query)
       .populate({
         path: "patient_id",
-        select: "age gender phone address user_id",
         populate: { path: "user_id", select: "name email avatar" }
       })
       .populate("clinic_id")
-      .sort({ start_time: 1 });
+      .sort({ start_time: 1 })
+      .lean();
 
-    return success(res, { appointments });
+    // Transform to ensure patient details are accessible directly
+    const formattedAppointments = appointments.map(app => {
+      const patient = app.patient_id || {};
+      const user = patient.user_id || {};
+      
+      return {
+        ...app,
+        patient_id: {
+          ...patient,
+          name: user.name || "Unknown Patient",
+          email: user.email || "",
+          avatar: user.avatar || "https://ui-avatars.com/api/?name=Unknown",
+          user_id: user._id || null 
+        }
+      };
+    });
+
+    return success(res, { appointments: formattedAppointments });
   } catch (err) {
     return error(res, err.message, 500);
   }

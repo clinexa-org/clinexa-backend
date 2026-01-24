@@ -306,7 +306,7 @@ export const getDoctorAppointments = async (req, res) => {
           name: user.name || "Unknown Patient",
           email: user.email || "",
           avatar: user.avatar || "https://ui-avatars.com/api/?name=Unknown&background=c7d2fe&color=3730a3&bold=true&size=200",
-          user_id: user._id || null 
+          user_id: patient.user_id || null 
         }
       };
     });

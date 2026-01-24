@@ -288,7 +288,7 @@ export const getDoctorAppointments = async (req, res) => {
     const appointments = await Appointment.find(query)
       .populate({
         path: "patient_id",
-        select: "age gender phone address",
+        select: "age gender phone address user_id",
         populate: { path: "user_id", select: "name email avatar" }
       })
       .populate("clinic_id")

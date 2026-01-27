@@ -22,7 +22,7 @@ import { toClinicTime, getDayOfWeekInTimezone, getTimeStringInTimezone, formatTi
  */
 const generateSlotsForDate = (clinic, dateStr) => {
   const slots = [];
-  const timezone = clinic.timezone || "UTC";
+  const timezone = clinic.timezone || "Africa/Cairo";
   
   // Try to determine the day of week relative to the date string
   const targetDate = new Date(dateStr); 
@@ -105,7 +105,7 @@ const generateSlotsFromHours = (dateStr, fromTime, toTime, slotDuration, timezon
  * Helper: Check if a slot is within working hours (Timezone Aware)
  */
 const isSlotWithinWorkingHours = (clinic, slotTime) => {
-  const timezone = clinic.timezone || "UTC";
+  const timezone = clinic.timezone || "Africa/Cairo";
   
   // Get date string relative to clinic timezone
   // This ensures we check exceptions for the correct DATE in that timezone
@@ -266,7 +266,7 @@ export const createAppointment = async (req, res) => {
       appointmentStartTime = new Date(start_time);
     } else if (date && time) {
       // If client sends date+time strings, we assume they mean CLINIC TIME
-      const timezone = clinic?.timezone || "UTC";
+      const timezone = clinic?.timezone || "Africa/Cairo";
       appointmentStartTime = createDateFromClinicTime(date, time, timezone);
     }
 
@@ -309,7 +309,7 @@ export const createAppointment = async (req, res) => {
       // Email → Doctor (appointment created)
       if (doctor?.user_id?.email) {
         const emailTime = appointment.start_time.toLocaleString('en-US', { 
-            timeZone: clinic?.timezone || "UTC",
+            timeZone: clinic?.timezone || "Africa/Cairo",
             hour: 'numeric',
             minute: 'numeric',
             hour12: true 
@@ -335,7 +335,7 @@ export const createAppointment = async (req, res) => {
 
       const responseApp = appointment.toObject();
       responseApp.formatted_start_time = appointment.start_time.toLocaleString('en-US', { 
-            timeZone: clinic?.timezone || "UTC",
+            timeZone: clinic?.timezone || "Africa/Cairo",
             hour: 'numeric',
             minute: 'numeric',
             hour12: true 
@@ -697,7 +697,7 @@ export const rescheduleAppointment = async (req, res) => {
     if (start_time) {
       appointmentStartTime = new Date(start_time);
     } else if (date && time) {
-       const timezone = clinic?.timezone || "UTC";
+       const timezone = clinic?.timezone || "Africa/Cairo";
        appointmentStartTime = createDateFromClinicTime(date, time, timezone);
     } else {
         // If no new time provided? The endpoint implies rescheduling, so new time is required.

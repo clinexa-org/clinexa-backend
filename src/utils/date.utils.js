@@ -4,8 +4,9 @@
  * Note: This returns a Date object where the headers match the wall-clock time in the target timezone.
  * Use this only for extracting hours/days. Do NOT use this for calculating durations or intervals.
  */
-export const toClinicTime = (date, timezone) => {
-  if (!timezone) return date; // Fallback
+export const toClinicTime = (date, timezone = "Africa/Cairo") => {
+  if (!timezone) timezone = "Africa/Cairo";
+
 
   const options = {
     timeZone: timezone,

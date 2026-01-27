@@ -25,10 +25,11 @@ export const upsertClinic = async (req, res) => {
       
       // Handle working hours updates if provided in upsertClinic
       // This allows the general "Update Clinic" screen to also save working hours if sent
-      const { timezone, weekly, working_hours, slotDurationMinutes } = req.body;
+      const { timezone, weekly, working_hours, slotDurationMinutes, gapMinutes } = req.body;
       let { slot_duration } = req.body;
       
       if (timezone) clinic.timezone = timezone;
+      if (gapMinutes !== undefined) clinic.gapMinutes = gapMinutes;
       
       let finalSlotDuration = slot_duration || slotDurationMinutes;
       if (finalSlotDuration) clinic.slotDurationMinutes = finalSlotDuration;
@@ -80,9 +81,11 @@ export const upsertClinic = async (req, res) => {
         phone,
         location_link,
         slotDurationMinutes: slot_duration || 30,
+        gapMinutes: req.body.gapMinutes || 0,
         timezone: timezone || "Africa/Cairo",
         weekly: initialWeekly || undefined
       });
+
 
       // Link clinic to doctor
       doctor.clinic_id = clinic._id;

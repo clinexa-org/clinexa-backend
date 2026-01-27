@@ -13,7 +13,9 @@ import {
 
 
 
-import { toClinicTime, getDayOfWeekInTimezone, getTimeStringInTimezone, formatTime12Hour } from "../utils/date.utils.js";
+
+import { toClinicTime, getDayOfWeekInTimezone, getTimeStringInTimezone, formatTime12Hour, createDateFromClinicTime } from "../utils/date.utils.js";
+
 
 /**
  * Helper: Generate available slots for a date (Timezone Aware)
@@ -46,19 +48,51 @@ const generateSlotsForDate = (clinic, dateStr) => {
   return generateSlotsFromHours(dateStr, dayConfig.from, dayConfig.to, clinic.slotDurationMinutes);
 };
 
-const generateSlotsFromHours = (dateStr, fromTime, toTime, slotDuration) => {
+const generateSlotsFromHours = (dateStr, fromTime, toTime, slotDuration, timezone) => {
   const slots = [];
   const [fromHour, fromMin] = fromTime.split(":").map(Number);
   const [toHour, toMin] = toTime.split(":").map(Number);
 
-  // We simply generate ISO strings assuming UTC for the slot generation
-  // The validation in isSlotWithinWorkingHours will handle timezone correctness
-  let current = new Date(`${dateStr}T${fromTime}:00`);
-  const end = new Date(`${dateStr}T${toTime}:00`);
+  // We loop in minutes
+  let startMins = fromHour * 60 + fromMin;
+  let endMins = toHour * 60 + toMin;
 
-  while (current < end) {
-    slots.push(current.toISOString());
-    current = new Date(current.getTime() + slotDuration * 60 * 1000);
+  // Handle overnight: if end < start, it means next day (add 24h to end)
+  if (endMins < startMins) {
+      endMins += 24 * 60;
+  }
+
+  for (let mins = startMins; mins < endMins; mins += slotDuration) {
+      // Normalize mins relative to start of day (00:00)
+      // If > 24*60, it's next day
+      
+      const currentMins = mins; 
+      // We want to construct a "Clinic wall clock time" string
+      // But we might cross midnight
+      
+      let dayOffset = 0;
+      let timeMins = currentMins;
+      
+      if (timeMins >= 24 * 60) {
+          dayOffset = 1; // next day
+          timeMins -= 24 * 60;
+      }
+      
+      const h = Math.floor(timeMins / 60);
+      const m = timeMins % 60;
+      const timeStr = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+      
+      // Calculate DATE string based on dayOffset
+      let targetDateStr = dateStr;
+      if (dayOffset > 0) {
+          const d = new Date(dateStr);
+          d.setDate(d.getDate() + 1);
+          targetDateStr = d.toISOString().split('T')[0];
+      }
+      
+      // Convert "Wall Clock" (targetDateStr + timeStr) -> UTC Date
+      const utcDate = createDateFromClinicTime(targetDateStr, timeStr, timezone);
+      slots.push(utcDate.toISOString());
   }
 
   return slots;
@@ -223,26 +257,14 @@ export const createAppointment = async (req, res) => {
       appointmentStartTime = new Date(start_time);
     } else if (date && time) {
       // If client sends date+time strings, we assume they mean CLINIC TIME
-      // So we must construct the UTC date that corresponds to "date time" in "clinic.timezone"
-      
       const timezone = clinic?.timezone || "UTC";
-      // This is complex without a library like moment-timezone.
-      // Easiest hack: 
-      // 1. Create date as UTC: 2026-02-01T11:00:00Z
-      // 2. Shift it by the offset?
-      
-      // Better: Assume input is ISO if no timezone info?
-      // Actually standardizing on sending `start_time` (ISO) from frontend is better.
-      // But if frontend sends date/time strings, standard JS Date constructor usually assumes UTC or Local.
-      
-      // Let's stick to the existing behavior: Date(`${date}T${time}:00`) -> Server Local/UTC
-      // BUT we must validate it against clinic hours correctly (which we fixed in isSlotWithinWorkingHours)
-       appointmentStartTime = new Date(`${date}T${time}:00`);
+      appointmentStartTime = createDateFromClinicTime(date, time, timezone);
     }
 
     if (!appointmentStartTime || isNaN(appointmentStartTime.getTime())) {
       return error(res, "Valid start_time or both date and time are required", 400);
     }
+
 
     // SCHEDULING VALIDATION: Check if slot is within working hours
     if (clinic) {
@@ -631,19 +653,35 @@ export const rescheduleAppointment = async (req, res) => {
     const { id } = req.params;
     const { start_time, date, time } = req.body;
 
+    const appointment = await Appointment.findById(id);
+    if (!appointment) return error(res, "Appointment not found", 404);
+
+    // Fetch doctor and clinic to determine timezone
+    const doctor = await Doctor.findById(appointment.doctor_id);
+    let clinic = null;
+    if (doctor) {
+        if (doctor.clinic_id) {
+             clinic = await Clinic.findById(doctor.clinic_id);
+        } else {
+             clinic = await Clinic.findOne({ doctor_id: doctor._id });
+        }
+    }
+
     let appointmentStartTime;
     if (start_time) {
       appointmentStartTime = new Date(start_time);
     } else if (date && time) {
-      appointmentStartTime = new Date(`${date}T${time}:00`);
+       const timezone = clinic?.timezone || "UTC";
+       appointmentStartTime = createDateFromClinicTime(date, time, timezone);
+    } else {
+        // If no new time provided? The endpoint implies rescheduling, so new time is required.
+         return error(res, "Valid start_time or both date and time are required", 400);
     }
 
     if (!appointmentStartTime || isNaN(appointmentStartTime.getTime())) {
       return error(res, "Valid start_time or both date and time are required", 400);
     }
 
-    const appointment = await Appointment.findById(id);
-    if (!appointment) return error(res, "Appointment not found", 404);
 
     if (req.user.role === "patient") {
       const patient = await Patient.findOne({ user_id: req.user.id });

@@ -58,3 +58,68 @@ export const formatTime12Hour = (timeStr) => {
   return `${String(hour).padStart(2, '0')}:${minStr} ${ampm}`;
 };
 
+/**
+ * Convert Clinic Wall Clock Time (YYYY-MM-DD + HH:mm) to a UTC Date object
+ * Effectively: Reverse of toClinicTime
+ */
+export const createDateFromClinicTime = (dateStr, timeStr, timezone) => {
+    if (!timezone) return new Date(`${dateStr}T${timeStr}:00`);
+
+    // 1. Initial Guess: Treat inputs as UTC
+    // e.g. Target: 09:00 Cairo. Guess: 09:00 UTC
+    let guess = new Date(`${dateStr}T${timeStr}:00Z`); // Explicit Z to ensure UTC
+
+    // 2. See what time that guess is in the Target Timezone
+    // getHourInZone("09:00 UTC", Cairo) -> "11:00"
+    // Difference is +2 hours.
+    
+    // We want the resulting Date, when formatted to timezone, to match `timeStr`.
+    // We can use a binary search or iterative adjustment?
+    // Iterative adjustment is usually enough for offsets.
+
+    const getOffsetMs = (d) => {
+         const options = { timeZone: timezone, hour12: false, year: 'numeric', month: 'numeric', day: 'numeric', hour: 'numeric', minute: 'numeric', second: 'numeric' };
+         const formatter = new Intl.DateTimeFormat('en-US', options);
+         const parts = formatter.formatToParts(d);
+         const p = (type) => parts.find(x => x.type === type).value;
+         
+         // Reconstruct 'wall clock' date from parts
+         // Note: Assuming standard gregorian parts
+         const wallDate = new Date(Date.UTC(p('year'), p('month') - 1, p('day'), p('hour'), p('minute'), p('second')));
+         return wallDate.getTime() - d.getTime(); 
+    };
+
+    // "Offset" is roughly Timezone Offset.
+    // wallDate = trueDate + offset
+    // trueDate = wallDate - offset
+    
+    // We have "Target Wall Date" (from inputs)
+    const targetWallDate = new Date(Date.UTC(
+        parseInt(dateStr.split('-')[0]),
+        parseInt(dateStr.split('-')[1]) - 1,
+        parseInt(dateStr.split('-')[2]),
+        parseInt(timeStr.split(':')[0]),
+        parseInt(timeStr.split(':')[1])
+    ));
+
+    // We need 'd' such that d + getOffsetMs(d) ~= targetWallDate
+    // Approximation: d ~= targetWallDate - getOffsetMs(targetWallDate)
+    
+    // Note: getOffsetMs(targetWallDate) uses targetWallDate as a point in time to check offset rules? 
+    // Usually offset rules depend on the actual UTC time.
+    // But offset doesn't change THAT often.
+    
+    const approxOffset = getOffsetMs(targetWallDate); // Check offset at that roughly instant
+    let candidate = new Date(targetWallDate.getTime() - approxOffset);
+
+    // Double check
+    const actualOffset = getOffsetMs(candidate);
+    if (actualOffset !== approxOffset) {
+        // Refine
+        candidate = new Date(targetWallDate.getTime() - actualOffset);
+    }
+    
+    return candidate;
+};
+
+

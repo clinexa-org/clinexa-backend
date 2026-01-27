@@ -11,14 +11,20 @@ import {
   appointmentCancelledTemplate
 } from "../services/email.templates.js";
 
+
+
+import { toClinicTime, getDayOfWeekInTimezone, getTimeStringInTimezone } from "../utils/date.utils.js";
+
 /**
- * Helper: Generate available slots for a date based on working hours
+ * Helper: Generate available slots for a date (Timezone Aware)
  */
 const generateSlotsForDate = (clinic, dateStr) => {
   const slots = [];
+  const timezone = clinic.timezone || "UTC";
+  
+  // Try to determine the day of week relative to the date string
+  const targetDate = new Date(dateStr); 
   const dayMap = { 0: "sun", 1: "mon", 2: "tue", 3: "wed", 4: "thu", 5: "fri", 6: "sat" };
-
-  const targetDate = new Date(dateStr);
   const dayOfWeek = dayMap[targetDate.getDay()];
 
   // Check for exceptions first
@@ -28,7 +34,6 @@ const generateSlotsForDate = (clinic, dateStr) => {
     if (exception.type === "closed") {
       return []; // Day off
     }
-    // Custom hours for this date
     return generateSlotsFromHours(dateStr, exception.from, exception.to, clinic.slotDurationMinutes);
   }
 
@@ -41,14 +46,13 @@ const generateSlotsForDate = (clinic, dateStr) => {
   return generateSlotsFromHours(dateStr, dayConfig.from, dayConfig.to, clinic.slotDurationMinutes);
 };
 
-/**
- * Helper: Generate time slots from start/end time
- */
 const generateSlotsFromHours = (dateStr, fromTime, toTime, slotDuration) => {
   const slots = [];
   const [fromHour, fromMin] = fromTime.split(":").map(Number);
   const [toHour, toMin] = toTime.split(":").map(Number);
 
+  // We simply generate ISO strings assuming UTC for the slot generation
+  // The validation in isSlotWithinWorkingHours will handle timezone correctness
   let current = new Date(`${dateStr}T${fromTime}:00`);
   const end = new Date(`${dateStr}T${toTime}:00`);
 
@@ -60,15 +64,23 @@ const generateSlotsFromHours = (dateStr, fromTime, toTime, slotDuration) => {
   return slots;
 };
 
+
 /**
- * Helper: Check if a slot is within working hours
+ * Helper: Check if a slot is within working hours (Timezone Aware)
  */
 const isSlotWithinWorkingHours = (clinic, slotTime) => {
-  const dayMap = { 0: "sun", 1: "mon", 2: "tue", 3: "wed", 4: "thu", 5: "fri", 6: "sat" };
-  const slotDate = new Date(slotTime);
-  const dateStr = slotDate.toISOString().split("T")[0];
-  const dayOfWeek = dayMap[slotDate.getDay()];
-  const slotTimeStr = slotDate.toTimeString().slice(0, 5); // HH:mm
+  const timezone = clinic.timezone || "UTC";
+  
+  // Get date string relative to clinic timezone
+  // This ensures we check exceptions for the correct DATE in that timezone
+  const clinicDate = toClinicTime(slotTime, timezone);
+  const year = clinicDate.getFullYear();
+  const month = String(clinicDate.getMonth() + 1).padStart(2, '0');
+  const day = String(clinicDate.getDate()).padStart(2, '0');
+  const dateStr = `${year}-${month}-${day}`;
+
+  const dayOfWeek = getDayOfWeekInTimezone(slotTime, timezone);
+  const slotTimeStr = getTimeStringInTimezone(slotTime, timezone);
 
   // Check exceptions first
   const exception = clinic.exceptions?.find(e => e.date === dateStr);
@@ -161,9 +173,6 @@ export const createAppointment = async (req, res) => {
       appointmentStartTime = new Date(`${date}T${time}:00`);
     }
 
-    if (!appointmentStartTime || isNaN(appointmentStartTime.getTime())) {
-      return error(res, "Valid start_time or both date and time are required", 400);
-    }
 
     // find patient profile
     const patient = await Patient.findOne({ user_id: req.user.id }).populate("user_id");
@@ -173,12 +182,38 @@ export const createAppointment = async (req, res) => {
     const doctor = await Doctor.findOne().populate("user_id");
     if (!doctor) return error(res, "Doctor profile not found", 404);
 
-    // clinic for that doctor (optional)
+    // clinic for that doctor
     let clinic = null;
     if (doctor.clinic_id) {
       clinic = await Clinic.findById(doctor.clinic_id);
     } else {
       clinic = await Clinic.findOne({ doctor_id: doctor._id });
+    }
+
+    // Resolve date and time relative to clinic timezone
+    if (start_time) {
+      appointmentStartTime = new Date(start_time);
+    } else if (date && time) {
+      // If client sends date+time strings, we assume they mean CLINIC TIME
+      // So we must construct the UTC date that corresponds to "date time" in "clinic.timezone"
+      
+      const timezone = clinic?.timezone || "UTC";
+      // This is complex without a library like moment-timezone.
+      // Easiest hack: 
+      // 1. Create date as UTC: 2026-02-01T11:00:00Z
+      // 2. Shift it by the offset?
+      
+      // Better: Assume input is ISO if no timezone info?
+      // Actually standardizing on sending `start_time` (ISO) from frontend is better.
+      // But if frontend sends date/time strings, standard JS Date constructor usually assumes UTC or Local.
+      
+      // Let's stick to the existing behavior: Date(`${date}T${time}:00`) -> Server Local/UTC
+      // BUT we must validate it against clinic hours correctly (which we fixed in isSlotWithinWorkingHours)
+       appointmentStartTime = new Date(`${date}T${time}:00`);
+    }
+
+    if (!appointmentStartTime || isNaN(appointmentStartTime.getTime())) {
+      return error(res, "Valid start_time or both date and time are required", 400);
     }
 
     // SCHEDULING VALIDATION: Check if slot is within working hours

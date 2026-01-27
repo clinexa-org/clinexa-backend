@@ -36,7 +36,7 @@ const generateSlotsForDate = (clinic, dateStr) => {
     if (exception.type === "closed") {
       return []; // Day off
     }
-    return generateSlotsFromHours(dateStr, exception.from, exception.to, clinic.slotDurationMinutes);
+    return generateSlotsFromHours(dateStr, exception.from, exception.to, clinic.slotDurationMinutes, timezone);
   }
 
   // Check weekly schedule
@@ -45,10 +45,10 @@ const generateSlotsForDate = (clinic, dateStr) => {
     return []; // Not a working day
   }
 
-  return generateSlotsFromHours(dateStr, dayConfig.from, dayConfig.to, clinic.slotDurationMinutes, timezone, clinic.gapMinutes || 0);
+  return generateSlotsFromHours(dateStr, dayConfig.from, dayConfig.to, clinic.slotDurationMinutes, timezone);
 };
 
-const generateSlotsFromHours = (dateStr, fromTime, toTime, slotDuration, timezone, gapMinutes = 0) => {
+const generateSlotsFromHours = (dateStr, fromTime, toTime, slotDuration, timezone) => {
   const slots = [];
   const [fromHour, fromMin] = fromTime.split(":").map(Number);
   const [toHour, toMin] = toTime.split(":").map(Number);
@@ -62,7 +62,7 @@ const generateSlotsFromHours = (dateStr, fromTime, toTime, slotDuration, timezon
       endMins += 24 * 60;
   }
 
-  const step = slotDuration + gapMinutes;
+  const step = slotDuration;
 
   for (let mins = startMins; mins < endMins; mins += step) {
       // Normalize mins relative to start of day (00:00)

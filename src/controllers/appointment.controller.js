@@ -13,7 +13,7 @@ import {
 
 
 
-import { toClinicTime, getDayOfWeekInTimezone, getTimeStringInTimezone } from "../utils/date.utils.js";
+import { toClinicTime, getDayOfWeekInTimezone, getTimeStringInTimezone, formatTime12Hour } from "../utils/date.utils.js";
 
 /**
  * Helper: Generate available slots for a date (Timezone Aware)
@@ -105,7 +105,7 @@ const isSlotWithinWorkingHours = (clinic, slotTime) => {
   if (slotTimeStr < dayConfig.from || slotTimeStr >= dayConfig.to) {
     return { 
         valid: false, 
-        reason: `Slot (${slotTimeStr}) is outside working hours (${dayConfig.from} - ${dayConfig.to})` 
+        reason: `working hours from ${formatTime12Hour(dayConfig.from)} to ${formatTime12Hour(dayConfig.to)} only` 
     };
   }
 

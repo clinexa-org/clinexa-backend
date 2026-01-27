@@ -47,3 +47,14 @@ export const getTimeStringInTimezone = (date, timezone) => {
     const m = d.getMinutes().toString().padStart(2, '0');
     return `${h}:${m}`;
 };
+
+export const formatTime12Hour = (timeStr) => {
+  if (!timeStr) return "";
+  const [hourStr, minStr] = timeStr.split(":");
+  let hour = parseInt(hourStr);
+  const ampm = hour >= 12 ? "pm" : "am";
+  hour = hour % 12;
+  hour = hour ? hour : 12; // the hour '0' should be '12'
+  return `${String(hour).padStart(2, '0')}:${minStr} ${ampm}`;
+};
+

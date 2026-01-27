@@ -308,15 +308,23 @@ export const createAppointment = async (req, res) => {
 
       // Email → Doctor (appointment created)
       if (doctor?.user_id?.email) {
+        const emailTime = appointment.start_time.toLocaleString('en-US', { 
+            timeZone: clinic?.timezone || "UTC",
+            hour: 'numeric',
+            minute: 'numeric',
+            hour12: true 
+        });
+
         await sendEmail({
           to: doctor.user_id.email,
           subject: "New Appointment Booked",
           html: appointmentCreatedTemplate({
             patientName: patient?.user_id?.name || "Patient",
-            date: appointment.start_time.toLocaleString('en-US', { hour12: true })
+            date: emailTime
           })
         });
       }
+
 
       // Populate for immediate use in Flutter UI
       await appointment.populate({
@@ -325,7 +333,16 @@ export const createAppointment = async (req, res) => {
       });
       await appointment.populate("clinic_id");
 
-      return success(res, { appointment }, "Appointment created", 201);
+      const responseApp = appointment.toObject();
+      responseApp.formatted_start_time = appointment.start_time.toLocaleString('en-US', { 
+            timeZone: clinic?.timezone || "UTC",
+            hour: 'numeric',
+            minute: 'numeric',
+            hour12: true 
+      });
+
+      return success(res, { appointment: responseApp }, "Appointment created", 201);
+
     } catch (dbErr) {
       // Handle MongoDB duplicate key error (race condition safety)
       if (dbErr.code === 11000) {

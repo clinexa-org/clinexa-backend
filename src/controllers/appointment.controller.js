@@ -203,15 +203,22 @@ export const getAvailableSlots = async (req, res) => {
 
     const bookedTimes = new Set(bookedAppointments.map(a => a.start_time.toISOString()));
 
-    // Filter available slots
-    const availableSlots = allSlots.filter(slot => !bookedTimes.has(slot));
+    // Map all slots to objects with status
+    const formattedSlots = allSlots.map(slot => {
+        const isBooked = bookedTimes.has(slot);
+        return {
+            time: slot, // ISO String (UTC)
+            status: isBooked ? "booked" : "available"
+        };
+    });
 
     return success(res, {
       date,
       timezone: clinic.timezone,
       slotDurationMinutes: clinic.slotDurationMinutes,
-      slots: availableSlots
+      slots: formattedSlots
     });
+
   } catch (err) {
     return error(res, err.message, 500);
   }

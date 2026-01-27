@@ -45,10 +45,10 @@ const generateSlotsForDate = (clinic, dateStr) => {
     return []; // Not a working day
   }
 
-  return generateSlotsFromHours(dateStr, dayConfig.from, dayConfig.to, clinic.slotDurationMinutes);
+  return generateSlotsFromHours(dateStr, dayConfig.from, dayConfig.to, clinic.slotDurationMinutes, timezone, clinic.gapMinutes || 0);
 };
 
-const generateSlotsFromHours = (dateStr, fromTime, toTime, slotDuration, timezone) => {
+const generateSlotsFromHours = (dateStr, fromTime, toTime, slotDuration, timezone, gapMinutes = 0) => {
   const slots = [];
   const [fromHour, fromMin] = fromTime.split(":").map(Number);
   const [toHour, toMin] = toTime.split(":").map(Number);
@@ -62,7 +62,9 @@ const generateSlotsFromHours = (dateStr, fromTime, toTime, slotDuration, timezon
       endMins += 24 * 60;
   }
 
-  for (let mins = startMins; mins < endMins; mins += slotDuration) {
+  const step = slotDuration + gapMinutes;
+
+  for (let mins = startMins; mins < endMins; mins += step) {
       // Normalize mins relative to start of day (00:00)
       // If > 24*60, it's next day
       

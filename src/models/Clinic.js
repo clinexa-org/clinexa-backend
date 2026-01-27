@@ -42,7 +42,9 @@ const clinicSchema = new mongoose.Schema(
     // Schedule fields
     timezone: { type: String, default: "Africa/Cairo" },
     slotDurationMinutes: { type: Number, default: 30 },
+    gapMinutes: { type: Number, default: 0 }, // Gap between slots
     weekly: {
+
       type: [weeklyHoursSchema],
       default: [
         { day: "sat", enabled: true, from: "09:00", to: "17:00" },

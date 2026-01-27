@@ -22,11 +22,11 @@ export const upsertClinic = async (req, res) => {
       if (city) clinic.city = city;
       if (phone) clinic.phone = phone;
       if (location_link !== undefined) clinic.location_link = location_link;
-      if (slot_duration) clinic.slotDurationMinutes = slot_duration;
-
+      
       // Handle working hours updates if provided in upsertClinic
       // This allows the general "Update Clinic" screen to also save working hours if sent
-      const { timezone, weekly, working_hours, slot_duration, slotDurationMinutes } = req.body;
+      const { timezone, weekly, working_hours, slotDurationMinutes } = req.body;
+      let { slot_duration } = req.body;
       
       if (timezone) clinic.timezone = timezone;
       

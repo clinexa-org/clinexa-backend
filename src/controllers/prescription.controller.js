@@ -87,6 +87,12 @@ export const createPrescription = async (req, res) => {
       items
     });
 
+    await prescription.populate([
+      { path: "doctor_id", populate: { path: "user_id", select: "name email avatar" } },
+      { path: "patient_id", populate: { path: "user_id", select: "name email avatar" } },
+      { path: "appointment_id" }
+    ]);
+
     return success(res, { prescription }, "Prescription created successfully", 201);
   } catch (err) {
     return error(res, err.message, 500);
@@ -222,7 +228,10 @@ export const getMyPrescriptions = async (req, res) => {
     if (!patient) return error(res, "Patient profile not found", 404);
 
     const prescriptions = await Prescription.find({ patient_id: patient._id })
-      .populate("doctor_id")
+      .populate({
+        path: "doctor_id",
+        populate: { path: "user_id", select: "name email avatar" }
+      })
       .populate("appointment_id")
       .sort({ createdAt: -1 });
 

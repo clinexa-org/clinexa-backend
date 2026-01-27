@@ -16,7 +16,8 @@ import {
 const router = express.Router();
 
 // Patient: get available slots for a date
-router.get("/available", auth, role("patient"), getAvailableSlots);
+router.get("/slots", auth, role("patient"), getAvailableSlots);
+
 
 // Patient: create appointment (single-doctor system)
 router.post("/", auth, role("patient"), createAppointment);

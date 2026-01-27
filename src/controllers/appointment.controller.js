@@ -95,18 +95,23 @@ const isSlotWithinWorkingHours = (clinic, slotTime) => {
     return { valid: true };
   }
 
+
   // Check weekly schedule
   const dayConfig = clinic.weekly?.find(d => d.day === dayOfWeek);
   if (!dayConfig || !dayConfig.enabled) {
-    return { valid: false, reason: "Clinic is closed on this day" };
+    return { valid: false, reason: `Clinic is closed on ${dayOfWeek}` };
   }
 
   if (slotTimeStr < dayConfig.from || slotTimeStr >= dayConfig.to) {
-    return { valid: false, reason: "Slot is outside working hours" };
+    return { 
+        valid: false, 
+        reason: `Slot (${slotTimeStr}) is outside working hours (${dayConfig.from} - ${dayConfig.to})` 
+    };
   }
 
   return { valid: true };
 };
+
 
 /**
  * Patient: Get available slots for a date

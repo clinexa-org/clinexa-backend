@@ -24,9 +24,54 @@ export const upsertClinic = async (req, res) => {
       if (location_link !== undefined) clinic.location_link = location_link;
       if (slot_duration) clinic.slotDurationMinutes = slot_duration;
 
+      // Handle working hours updates if provided in upsertClinic
+      // This allows the general "Update Clinic" screen to also save working hours if sent
+      const { timezone, weekly, working_hours, slot_duration, slotDurationMinutes } = req.body;
+      
+      if (timezone) clinic.timezone = timezone;
+      
+      let finalSlotDuration = slot_duration || slotDurationMinutes;
+      if (finalSlotDuration) clinic.slotDurationMinutes = finalSlotDuration;
+
+      // Logic to map working_hours to weekly if needed (reuse logic from updateMyWorkingHours)
+      let finalWeekly = weekly;
+      if (working_hours && Array.isArray(working_hours)) {
+         const dayMap = {
+          "saturday": "sat", "sunday": "sun", "monday": "mon", "tuesday": "tue",
+          "wednesday": "wed", "thursday": "thu", "friday": "fri"
+        };
+        finalWeekly = working_hours.map(wh => ({
+          day: dayMap[wh.day_of_week.toLowerCase()] || wh.day_of_week.substr(0, 3).toLowerCase(),
+          enabled: wh.is_open,
+          from: wh.start_time || "09:00",
+          to: wh.end_time || "17:00"
+        }));
+      }
+
+      if (finalWeekly && Array.isArray(finalWeekly)) {
+          clinic.weekly = finalWeekly;
+      }
+
       await clinic.save();
     } else {
       // Create clinic
+      // ... logic for creation including working hours if provided ... 
+      const { timezone, weekly, working_hours } = req.body;
+      let initialWeekly = weekly;
+      if (working_hours && Array.isArray(working_hours)) {
+          // map it...
+           const dayMap = {
+            "saturday": "sat", "sunday": "sun", "monday": "mon", "tuesday": "tue",
+            "wednesday": "wed", "thursday": "thu", "friday": "fri"
+          };
+          initialWeekly = working_hours.map(wh => ({
+            day: dayMap[wh.day_of_week.toLowerCase()] || wh.day_of_week.substr(0, 3).toLowerCase(),
+            enabled: wh.is_open,
+            from: wh.start_time || "09:00",
+            to: wh.end_time || "17:00"
+          }));
+      }
+
       clinic = await Clinic.create({
         doctor_id: doctor._id,
         name,
@@ -34,13 +79,16 @@ export const upsertClinic = async (req, res) => {
         city: city || "",
         phone,
         location_link,
-        slotDurationMinutes: slot_duration || 30
+        slotDurationMinutes: slot_duration || 30,
+        timezone: timezone || "Africa/Cairo",
+        weekly: initialWeekly || undefined
       });
 
       // Link clinic to doctor
       doctor.clinic_id = clinic._id;
       await doctor.save();
     }
+
 
     return success(res, { clinic }, "Clinic saved successfully");
   } catch (err) {
@@ -145,6 +193,22 @@ export const updateMyWorkingHours = async (req, res) => {
         to: wh.end_time || "17:00"
       }));
     }
+
+    // Safety: ensure finalWeekly structure is valid day codes if passed directly
+    if (finalWeekly && Array.isArray(finalWeekly)) {
+        const dayMapReverse = {
+            "saturday": "sat", "sunday": "sun", "monday": "mon", "tuesday": "tue",
+            "wednesday": "wed", "thursday": "thu", "friday": "fri"
+        };
+        finalWeekly = finalWeekly.map(day => {
+            if (day.day.length > 3) {
+                 const short = dayMapReverse[day.day.toLowerCase()] || day.day.substr(0,3).toLowerCase();
+                 return { ...day, day: short };
+            }
+            return day;
+        });
+    }
+
 
     if (finalWeekly !== undefined) {
       // Validate weekly structure

@@ -96,16 +96,27 @@ const isSlotWithinWorkingHours = (clinic, slotTime) => {
   }
 
 
+
+
   // Check weekly schedule
   const dayConfig = clinic.weekly?.find(d => d.day === dayOfWeek);
+  
+  // Create a map for full day names for better UX
+  const fullDayMap = {
+      "sat": "Saturday", "sun": "Sunday", "mon": "Monday", "tue": "Tuesday",
+      "wed": "Wednesday", "thu": "Thursday", "fri": "Friday"
+  };
+  const fullDayName = fullDayMap[dayOfWeek] || dayOfWeek;
+
   if (!dayConfig || !dayConfig.enabled) {
-    return { valid: false, reason: `Clinic is closed on ${dayOfWeek}` };
+    return { valid: false, reason: `Clinic is closed on ${fullDayName}` };
   }
+
 
   if (slotTimeStr < dayConfig.from || slotTimeStr >= dayConfig.to) {
     return { 
         valid: false, 
-        reason: `working hours from ${formatTime12Hour(dayConfig.from)} to ${formatTime12Hour(dayConfig.to)} only` 
+        reason: `working hours on ${fullDayName} from ${formatTime12Hour(dayConfig.from)} to ${formatTime12Hour(dayConfig.to)} only` 
     };
   }
 

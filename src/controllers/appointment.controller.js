@@ -560,6 +560,11 @@ export const cancelAppointment = async (req, res) => {
       if (!patient || appointment.patient_id.toString() !== patient._id.toString()) {
         return error(res, "You cannot cancel this appointment", 403);
       }
+      
+      // CONFIRMATION CHECK: Patients cannot cancel confirmed appointments
+      if (appointment.status === "confirmed") {
+        return error(res, "Confirmed appointments cannot be cancelled by patients. Please contact the clinic.", 403);
+      }
     } else if (req.user.role === "doctor") {
       const doctor = await Doctor.findOne({ user_id: req.user.id });
       if (!doctor || appointment.doctor_id.toString() !== doctor._id.toString()) {

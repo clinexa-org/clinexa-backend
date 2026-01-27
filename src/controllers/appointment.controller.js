@@ -113,7 +113,19 @@ const isSlotWithinWorkingHours = (clinic, slotTime) => {
   }
 
 
-  if (slotTimeStr < dayConfig.from || slotTimeStr >= dayConfig.to) {
+
+  const isOvernight = dayConfig.from > dayConfig.to;
+  let isSlotValid = false;
+
+  if (isOvernight) {
+      // Valid if it's after start OR before end (next day - early morning)
+      isSlotValid = (slotTimeStr >= dayConfig.from || slotTimeStr < dayConfig.to);
+  } else {
+      // Standard day: Valid if it's after start AND before end
+      isSlotValid = (slotTimeStr >= dayConfig.from && slotTimeStr < dayConfig.to);
+  }
+
+  if (!isSlotValid) {
     return { 
         valid: false, 
         reason: `working hours on ${fullDayName} from ${formatTime12Hour(dayConfig.from)} to ${formatTime12Hour(dayConfig.to)} only` 

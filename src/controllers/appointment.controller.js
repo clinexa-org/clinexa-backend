@@ -374,10 +374,11 @@ export const confirmAppointment = async (req, res) => {
       }
     }
 
+
     appointment.status = "confirmed";
     await appointment.save();
 
-    // Populate for email template
+    // Populate for email template & response
     const doctor = await Doctor.findById(appointment.doctor_id).populate("user_id");
     const patient = await Patient.findById(appointment.patient_id).populate("user_id");
 
@@ -393,7 +394,31 @@ export const confirmAppointment = async (req, res) => {
       });
     }
 
-    return success(res, { appointment }, "Appointment confirmed");
+    // Format response to match getDoctorAppointments structure
+    const populatedAppointment = await Appointment.findById(appointment._id)
+        .populate({
+            path: "patient_id",
+            populate: { path: "user_id", select: "name email avatar" }
+        })
+        .populate("clinic_id")
+        .lean();
+
+    const formattedPatient = populatedAppointment.patient_id || {};
+    const formattedUser = formattedPatient.user_id || {};
+    
+    const responseAppointment = {
+        ...populatedAppointment,
+        patient_id: {
+            ...formattedPatient,
+            name: formattedUser.name || "Unknown Patient",
+            email: formattedUser.email || "",
+            avatar: formattedUser.avatar || "https://ui-avatars.com/api/?name=Unknown&background=c7d2fe&color=3730a3&bold=true&size=200",
+            user_id: formattedPatient.user_id || null
+        }
+    };
+
+    return success(res, { appointment: responseAppointment }, "Appointment confirmed");
+
   } catch (err) {
     return error(res, err.message, 500);
   }
@@ -449,9 +474,34 @@ export const cancelAppointment = async (req, res) => {
       });
     }
 
+
     await appointment.populate("cancelledBy", "name email role");
 
-    return success(res, { appointment }, "Appointment cancelled");
+    // Format response consistent with other endpoints
+    const populatedAppointment = await Appointment.findById(appointment._id)
+        .populate({
+            path: "patient_id",
+            populate: { path: "user_id", select: "name email avatar" }
+        })
+        .populate("clinic_id")
+        .lean();
+
+    const formattedPatient = populatedAppointment.patient_id || {};
+    const formattedUser = formattedPatient.user_id || {};
+
+    const responseAppointment = {
+        ...populatedAppointment,
+        patient_id: {
+            ...formattedPatient,
+            name: formattedUser.name || "Unknown Patient",
+            email: formattedUser.email || "",
+            avatar: formattedUser.avatar || "https://ui-avatars.com/api/?name=Unknown&background=c7d2fe&color=3730a3&bold=true&size=200",
+            user_id: formattedPatient.user_id || null
+        }
+    };
+
+    return success(res, { appointment: responseAppointment }, "Appointment cancelled");
+
   } catch (err) {
     return error(res, err.message, 500);
   }
@@ -479,7 +529,32 @@ export const completeAppointment = async (req, res) => {
     appointment.status = "completed";
     await appointment.save();
 
-    return success(res, { appointment }, "Appointment completed");
+
+    // Format response consistent with other endpoints
+    const populatedAppointment = await Appointment.findById(appointment._id)
+        .populate({
+            path: "patient_id",
+            populate: { path: "user_id", select: "name email avatar" }
+        })
+        .populate("clinic_id")
+        .lean();
+
+    const formattedPatient = populatedAppointment.patient_id || {};
+    const formattedUser = formattedPatient.user_id || {};
+
+    const responseAppointment = {
+        ...populatedAppointment,
+        patient_id: {
+            ...formattedPatient,
+            name: formattedUser.name || "Unknown Patient",
+            email: formattedUser.email || "",
+            avatar: formattedUser.avatar || "https://ui-avatars.com/api/?name=Unknown&background=c7d2fe&color=3730a3&bold=true&size=200",
+            user_id: formattedPatient.user_id || null
+        }
+    };
+
+    return success(res, { appointment: responseAppointment }, "Appointment completed");
+
   } catch (err) {
     return error(res, err.message, 500);
   }
@@ -530,13 +605,32 @@ export const rescheduleAppointment = async (req, res) => {
     appointment.status = "pending";
     await appointment.save();
 
-    await appointment.populate({
-      path: "doctor_id",
-      populate: { path: "user_id", select: "name" }
-    });
-    await appointment.populate("clinic_id");
+    
+    // Format response consistent with other endpoints
+    const populatedAppointment = await Appointment.findById(appointment._id)
+        .populate({
+            path: "patient_id",
+            populate: { path: "user_id", select: "name email avatar" }
+        })
+        .populate("clinic_id")
+        .lean();
 
-    return success(res, { appointment }, "Appointment rescheduled successfully");
+    const formattedPatient = populatedAppointment.patient_id || {};
+    const formattedUser = formattedPatient.user_id || {};
+
+    const responseAppointment = {
+        ...populatedAppointment,
+        patient_id: {
+            ...formattedPatient,
+            name: formattedUser.name || "Unknown Patient",
+            email: formattedUser.email || "",
+            avatar: formattedUser.avatar || "https://ui-avatars.com/api/?name=Unknown&background=c7d2fe&color=3730a3&bold=true&size=200",
+            user_id: formattedPatient.user_id || null
+        }
+    };
+
+    return success(res, { appointment: responseAppointment }, "Appointment rescheduled successfully");
+
   } catch (err) {
     if (err.code === 11000) {
       return error(res, "The new time slot is already booked", 409);

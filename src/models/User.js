@@ -15,4 +15,31 @@ const userSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+
+// Cascade delete: When a user is deleted, delete linked Patient/Doctor profiles
+userSchema.pre("findOneAndDelete", async function (next) {
+  try {
+    const filter = this.getFilter();
+    const userId = filter._id;
+
+    if (userId) {
+      // 1. Delete Patient profile(s) - iterate to trigger Patient middleware
+      const patients = await mongoose.model("Patient").find({ user_id: userId });
+      for (const p of patients) {
+        await mongoose.model("Patient").findOneAndDelete({ _id: p._id });
+      }
+      
+      // 2. Delete Doctor profile - trigger Doctor middleware
+      const doctor = await mongoose.model("Doctor").findOne({ user_id: userId });
+      if (doctor) {
+        await mongoose.model("Doctor").findOneAndDelete({ _id: doctor._id });
+      }
+    }
+    next();
+  } catch (err) {
+    next(err);
+  }
+});
+
 export default mongoose.model("User", userSchema);
+

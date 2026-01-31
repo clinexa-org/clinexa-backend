@@ -103,13 +103,30 @@ export const getDoctorStats = async (req, res) => {
     const doctor = await Doctor.findOne({ user_id: req.user.id });
     if (!doctor) return error(res, "Doctor profile not found", 404);
 
-    const appointmentsCount = await Appointment.countDocuments({ 
+    const { month } = req.query;
+    const query = { 
       doctor_id: doctor._id,
       status: { $ne: "cancelled" }
-    });
+    };
+
+    if (month) {
+      // Validate YYYY-MM format
+      if (!/^\d{4}-\d{2}$/.test(month)) {
+        return error(res, "Invalid month format. Use YYYY-MM", 400);
+      }
+
+      const [year, m] = month.split("-").map(Number);
+      const startDate = new Date(year, m - 1, 1);
+      const endDate = new Date(year, m, 1);
+
+      query.start_time = { $gte: startDate, $lt: endDate };
+    }
+
+    const appointmentsCount = await Appointment.countDocuments(query);
     
-    // Count unique patients
-    const patients = await Appointment.distinct("patient_id", { doctor_id: doctor._id });
+    // Count unique patients for this doctor (optionally within the month)
+    // If month is provided, the query already includes the date range
+    const patients = await Appointment.distinct("patient_id", query);
     
     // Basic stats for now
     return success(res, {

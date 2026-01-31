@@ -16,6 +16,7 @@ import {
 
 
 import { toClinicTime, getDayOfWeekInTimezone, getTimeStringInTimezone, formatTime12Hour, createDateFromClinicTime } from "../utils/date.utils.js";
+import { notifyUser } from "../services/notification.service.js";
 
 
 /**
@@ -326,6 +327,24 @@ export const createAppointment = async (req, res) => {
         });
       }
 
+      // Notify doctor via push + socket
+      if (doctor?.user_id?._id) {
+        await notifyUser({
+          recipientUserId: doctor.user_id._id,
+          type: "APPOINTMENT_CREATED",
+          title: "New Appointment Booked",
+          body: `${patient?.user_id?.name || "A patient"} booked an appointment for ${emailTime}`,
+          data: { appointmentId: appointment._id },
+          socketEvent: "appointment:created",
+          socketPayload: {
+            appointmentId: appointment._id,
+            status: appointment.status,
+            start_time: appointment.start_time,
+            patientName: patient?.user_id?.name || "Patient"
+          }
+        });
+      }
+
 
       // Populate for immediate use in Flutter UI
       await appointment.populate({
@@ -531,6 +550,24 @@ export const confirmAppointment = async (req, res) => {
       });
     }
 
+    // Notify patient via push + socket
+    if (patient?.user_id?._id) {
+      await notifyUser({
+        recipientUserId: patient.user_id._id,
+        type: "APPOINTMENT_CONFIRMED",
+        title: "Appointment Confirmed",
+        body: `Your appointment with Dr. ${doctor?.user_id?.name || "Doctor"} has been confirmed`,
+        data: { appointmentId: appointment._id },
+        socketEvent: "appointment:updated",
+        socketPayload: {
+          appointmentId: appointment._id,
+          status: "confirmed",
+          start_time: appointment.start_time,
+          doctorName: doctor?.user_id?.name
+        }
+      });
+    }
+
     // Format response to match getDoctorAppointments structure
     const populatedAppointment = await Appointment.findById(appointment._id)
         .populate({
@@ -616,6 +653,25 @@ export const cancelAppointment = async (req, res) => {
       });
     }
 
+    // Notify patient via push + socket
+    const doctor = await Doctor.findById(appointment.doctor_id).populate("user_id");
+    if (patient?.user_id?._id) {
+      await notifyUser({
+        recipientUserId: patient.user_id._id,
+        type: "APPOINTMENT_CANCELLED",
+        title: "Appointment Cancelled",
+        body: `Your appointment with Dr. ${doctor?.user_id?.name || "Doctor"} has been cancelled`,
+        data: { appointmentId: appointment._id },
+        socketEvent: "appointment:updated",
+        socketPayload: {
+          appointmentId: appointment._id,
+          status: "cancelled",
+          start_time: appointment.start_time,
+          cancellationReason: appointment.cancellationReason
+        }
+      });
+    }
+
 
     await appointment.populate("cancelledBy", "name email role");
 
@@ -670,6 +726,27 @@ export const completeAppointment = async (req, res) => {
 
     appointment.status = "completed";
     await appointment.save();
+
+    // Fetch patient and doctor for notification
+    const doctor = await Doctor.findById(appointment.doctor_id).populate("user_id");
+    const patient = await Patient.findById(appointment.patient_id).populate("user_id");
+
+    // Notify patient via push + socket
+    if (patient?.user_id?._id) {
+      await notifyUser({
+        recipientUserId: patient.user_id._id,
+        type: "APPOINTMENT_COMPLETED",
+        title: "Appointment Completed",
+        body: `Your appointment with Dr. ${doctor?.user_id?.name || "Doctor"} has been completed`,
+        data: { appointmentId: appointment._id },
+        socketEvent: "appointment:updated",
+        socketPayload: {
+          appointmentId: appointment._id,
+          status: "completed",
+          start_time: appointment.start_time
+        }
+      });
+    }
 
 
     // Format response consistent with other endpoints

@@ -9,6 +9,7 @@ import appointmentRoutes from "./routes/appointment.routes.js";
 import prescriptionRoutes from "./routes/prescription.routes.js";
 import adminRoutes from "./routes/admin.routes.js";
 import userRoutes from "./routes/user.routes.js";
+import notificationsRoutes from "./routes/notifications.routes.js";
 dotenv.config();
 
 const app = express();
@@ -38,4 +39,8 @@ app.use("/api/prescriptions", prescriptionRoutes);
 app.use("/api/admin", adminRoutes);
 
 app.use("/api/users", userRoutes);
+
+app.use("/api/notifications", notificationsRoutes);
+
 export default app;
+

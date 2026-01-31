@@ -50,6 +50,10 @@ const appointmentSchema = new mongoose.Schema(
     cancellationReason: {
       type: String,
       default: null
+    },
+    reminderSentAt: {
+      type: Date,
+      default: null
     }
   },
   { timestamps: true }

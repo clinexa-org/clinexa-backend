@@ -225,3 +225,55 @@ export const resetPassword = async (req, res) => {
     return error(res, err.message, 500);
   }
 };
+
+
+/**
+ * REGISTER DEVICE TOKEN - For push notifications
+ * POST /api/auth/device-token
+ * Body: { token: string, platform?: 'android'|'ios'|'web' }
+ */
+import DeviceToken from "../models/DeviceToken.js";
+
+export const registerDeviceToken = async (req, res) => {
+  try {
+    const { token, platform = "android" } = req.body;
+    const userId = req.user.id;
+
+    if (!token) {
+      return error(res, "Token is required", 400);
+    }
+
+    // Upsert: update if exists, create if not
+    await DeviceToken.findOneAndUpdate(
+      { userId, token },
+      { userId, token, platform, updatedAt: new Date() },
+      { upsert: true, new: true }
+    );
+
+    return success(res, null, "Device token registered successfully");
+  } catch (err) {
+    return error(res, err.message, 500);
+  }
+};
+
+/**
+ * REMOVE DEVICE TOKEN - On logout
+ * DELETE /api/auth/device-token
+ * Body: { token: string }
+ */
+export const removeDeviceToken = async (req, res) => {
+  try {
+    const { token } = req.body;
+    const userId = req.user.id;
+
+    if (!token) {
+      return error(res, "Token is required", 400);
+    }
+
+    await DeviceToken.deleteOne({ userId, token });
+
+    return success(res, null, "Device token removed successfully");
+  } catch (err) {
+    return error(res, err.message, 500);
+  }
+};

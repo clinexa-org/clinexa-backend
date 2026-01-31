@@ -3,6 +3,7 @@ import Doctor from "../models/Doctor.js";
 import Patient from "../models/Patient.js";
 import Appointment from "../models/Appointment.js";
 import { success, error } from "../utils/response.js";
+import { notifyUser } from "../services/notification.service.js";
 
 /**
  * Doctor creates prescription
@@ -97,6 +98,25 @@ export const createPrescription = async (req, res) => {
       { path: "patient_id", populate: { path: "user_id", select: "name email avatar" } },
       { path: "appointment_id" }
     ]);
+
+    // Notify patient about prescription
+    if (patient?.user_id) {
+      // Fetch doctor user for notification
+      const doctorUser = await Doctor.findById(doctor._id).populate("user_id", "name");
+      await notifyUser({
+        recipientUserId: patient.user_id,
+        type: "PRESCRIPTION_CREATED",
+        title: "Prescription Ready",
+        body: `Dr. ${doctorUser?.user_id?.name || "Doctor"} has written you a prescription`,
+        data: { prescriptionId: prescription._id },
+        socketEvent: "prescription:created",
+        socketPayload: {
+          prescriptionId: prescription._id,
+          diagnosis: prescription.diagnosis,
+          itemsCount: prescription.items.length
+        }
+      });
+    }
 
     return success(res, { prescription }, "Prescription created successfully", 201);
   } catch (err) {

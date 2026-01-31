@@ -38,7 +38,11 @@ export const getDoctorPrescriptions = async (req, res) => {
 
 export const createPrescription = async (req, res) => {
   try {
-    const { patient_id, appointment_id, notes, items } = req.body;
+    const { patient_id, appointment_id, diagnosis, notes, items } = req.body;
+
+    if (!diagnosis) {
+      return error(res, "diagnosis is required", 400);
+    }
 
     if (!patient_id) {
       return error(res, "patient_id is required", 400);
@@ -83,6 +87,7 @@ export const createPrescription = async (req, res) => {
       doctor_id: doctor._id,
       patient_id: patient._id,
       appointment_id: appointment ? appointment._id : null,
+      diagnosis,
       notes,
       items
     });
@@ -104,7 +109,7 @@ export const createPrescription = async (req, res) => {
  */
 export const updatePrescription = async (req, res) => {
   try {
-    const { notes, items } = req.body;
+    const { diagnosis, notes, items } = req.body;
 
     const prescription = await Prescription.findById(req.params.id);
     if (!prescription) return error(res, "Prescription not found", 404);
@@ -117,6 +122,7 @@ export const updatePrescription = async (req, res) => {
       return error(res, "You cannot edit this prescription", 403);
     }
 
+    if (diagnosis !== undefined) prescription.diagnosis = diagnosis;
     if (typeof notes === "string") prescription.notes = notes;
     if (items && Array.isArray(items)) prescription.items = items;
 

@@ -26,6 +26,10 @@ const prescriptionSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "Appointment"
     },
+    diagnosis: {
+      type: String,
+      required: true
+    },
     notes: {
       type: String,
       default: ""

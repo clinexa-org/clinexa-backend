@@ -2,6 +2,7 @@ import Appointment from "../models/Appointment.js";
 import Doctor from "../models/Doctor.js";
 import Clinic from "../models/Clinic.js";
 import Patient from "../models/Patient.js";
+import User from "../models/User.js";
 import { success, error } from "../utils/response.js";
 
 import { sendEmail } from "../services/email.service.js";
@@ -394,6 +395,31 @@ export const getDoctorAppointments = async (req, res) => {
       nextDay.setDate(day.getDate() + 1);
 
       query.start_time = { $gte: day, $lt: nextDay };
+    }
+
+    // SEARCH FILTER
+    if (req.query.search) {
+      const searchStr = req.query.search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const searchRegex = new RegExp(searchStr, "i");
+
+      // 1. Find matched Users (by name)
+      const users = await User.find({ name: searchRegex }).select("_id");
+      const userIds = users.map(u => u._id);
+
+      // 2. Find matched Patients (by phone OR user_id)
+      const patients = await Patient.find({
+        $or: [
+          { phone: searchRegex },
+          { user_id: { $in: userIds } }
+        ]
+      }).select("_id");
+      const patientIds = patients.map(p => p._id);
+
+      // 3. Update query with OR condition
+      query.$or = [
+        { reason: searchRegex },
+        { patient_id: { $in: patientIds } }
+      ];
     }
 
     const appointments = await Appointment.find(query)

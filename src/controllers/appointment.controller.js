@@ -308,15 +308,16 @@ export const createAppointment = async (req, res) => {
         source: "patient_app"
       });
 
+      // Format time for notifications and emails
+      const emailTime = appointment.start_time.toLocaleString('en-US', { 
+          timeZone: clinic?.timezone || "Africa/Cairo",
+          hour: 'numeric',
+          minute: 'numeric',
+          hour12: true 
+      });
+
       // Email → Doctor (appointment created)
       if (doctor?.user_id?.email) {
-        const emailTime = appointment.start_time.toLocaleString('en-US', { 
-            timeZone: clinic?.timezone || "Africa/Cairo",
-            hour: 'numeric',
-            minute: 'numeric',
-            hour12: true 
-        });
-
         await sendEmail({
           to: doctor.user_id.email,
           subject: "New Appointment Booked",

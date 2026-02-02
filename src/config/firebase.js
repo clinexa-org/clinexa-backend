@@ -19,12 +19,27 @@ export const initFirebase = () => {
   if (firebaseApp) return firebaseApp;
 
   try {
+    // Debug: Log which env vars are present
+    console.log("[Firebase] Checking environment variables...");
+    console.log("[Firebase] FIREBASE_PROJECT_ID:", process.env.FIREBASE_PROJECT_ID ? "SET" : "NOT SET");
+    console.log("[Firebase] FIREBASE_PRIVATE_KEY:", process.env.FIREBASE_PRIVATE_KEY ? `SET (${process.env.FIREBASE_PRIVATE_KEY.length} chars)` : "NOT SET");
+    console.log("[Firebase] FIREBASE_CLIENT_EMAIL:", process.env.FIREBASE_CLIENT_EMAIL ? "SET" : "NOT SET");
+
     // Option 1: Use environment variables (recommended for Vercel)
     if (process.env.FIREBASE_PROJECT_ID && process.env.FIREBASE_PRIVATE_KEY && process.env.FIREBASE_CLIENT_EMAIL) {
+      // Check if private key has correct format
+      const privateKey = process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n');
+      if (!privateKey.includes('-----BEGIN PRIVATE KEY-----')) {
+        console.error("[Firebase] ERROR: Private key missing BEGIN header!");
+      }
+      if (!privateKey.includes('-----END PRIVATE KEY-----')) {
+        console.error("[Firebase] ERROR: Private key missing END footer!");
+      }
+
       const serviceAccount = {
         type: "service_account",
         project_id: process.env.FIREBASE_PROJECT_ID,
-        private_key: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n'),
+        private_key: privateKey,
         client_email: process.env.FIREBASE_CLIENT_EMAIL,
       };
 
@@ -32,7 +47,7 @@ export const initFirebase = () => {
         credential: admin.credential.cert(serviceAccount)
       });
       
-      console.log("[Firebase] Admin SDK initialized from environment variables");
+      console.log("[Firebase] Admin SDK initialized from environment variables ✓");
       return firebaseApp;
     }
 

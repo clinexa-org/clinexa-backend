@@ -38,6 +38,8 @@ export const createNotification = async ({ recipientUserId, type, title, body, d
  * @param {object} params.data - Optional data payload
  */
 export const sendPushToUser = async (recipientUserId, { title, body, data = {} }) => {
+  console.log(`[Push] Attempting to send push to user ${recipientUserId}`);
+  
   if (!isFirebaseInitialized()) {
     console.warn("[Push] Firebase not initialized, skipping push");
     return;
@@ -47,12 +49,16 @@ export const sendPushToUser = async (recipientUserId, { title, body, data = {} }
     // Get all device tokens for this user
     const deviceTokens = await DeviceToken.find({ userId: recipientUserId });
     
+    console.log(`[Push] Found ${deviceTokens.length} device tokens for user ${recipientUserId}`);
+    
     if (deviceTokens.length === 0) {
-      console.log(`[Push] No device tokens for user ${recipientUserId}`);
+      console.log(`[Push] No device tokens for user ${recipientUserId} - make sure doctor logged in after app installed`);
       return;
     }
 
     const tokens = deviceTokens.map(dt => dt.token);
+    console.log(`[Push] Token(s): ${tokens.map(t => t.substring(0, 20) + '...').join(', ')}`);
+    
     const admin = getFirebaseAdmin();
 
     // Convert data values to strings (FCM requirement)
@@ -67,9 +73,10 @@ export const sendPushToUser = async (recipientUserId, { title, body, data = {} }
       tokens
     };
 
+    console.log(`[Push] Sending message: "${title}" - "${body}"`);
     const response = await admin.messaging().sendEachForMulticast(message);
     
-    console.log(`[Push] Sent to ${response.successCount}/${tokens.length} devices for user ${recipientUserId}`);
+    console.log(`[Push] Result: ${response.successCount} success, ${response.failureCount} failures`);
 
     // Clean up invalid tokens
     if (response.failureCount > 0) {

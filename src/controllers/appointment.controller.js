@@ -555,7 +555,9 @@ export const confirmAppointment = async (req, res) => {
     }
 
     // Notify patient via push + socket
+    // Notify patient via push + socket
     if (patient?.user_id?._id) {
+      console.log(`[Appointment] Notifying patient ${patient.user_id._id} about confirmation`);
       await notifyUser({
         recipientUserId: patient.user_id._id,
         type: "APPOINTMENT_CONFIRMED",
@@ -570,6 +572,8 @@ export const confirmAppointment = async (req, res) => {
           doctorName: doctor?.user_id?.name
         }
       });
+    } else {
+        console.warn(`[Appointment] Cannot notify patient - user_id not found on patient record`);
     }
 
     // Format response to match getDoctorAppointments structure
@@ -660,6 +664,7 @@ export const cancelAppointment = async (req, res) => {
     // Notify patient via push + socket
     const doctor = await Doctor.findById(appointment.doctor_id).populate("user_id");
     if (patient?.user_id?._id) {
+      console.log(`[Appointment] Notifying patient ${patient.user_id._id} about cancellation`);
       await notifyUser({
         recipientUserId: patient.user_id._id,
         type: "APPOINTMENT_CANCELLED",
@@ -674,6 +679,8 @@ export const cancelAppointment = async (req, res) => {
           cancellationReason: appointment.cancellationReason
         }
       });
+    } else {
+        console.warn(`[Appointment] Cannot notify patient - user_id not found on patient record`);
     }
 
 
@@ -736,7 +743,9 @@ export const completeAppointment = async (req, res) => {
     const patient = await Patient.findById(appointment.patient_id).populate("user_id");
 
     // Notify patient via push + socket
+    // Notify patient via push + socket
     if (patient?.user_id?._id) {
+      console.log(`[Appointment] Notifying patient ${patient.user_id._id} about completion`);
       await notifyUser({
         recipientUserId: patient.user_id._id,
         type: "APPOINTMENT_COMPLETED",
@@ -750,6 +759,8 @@ export const completeAppointment = async (req, res) => {
           start_time: appointment.start_time
         }
       });
+    } else {
+        console.warn(`[Appointment] Cannot notify patient - user_id not found on patient record`);
     }
 
 
@@ -856,6 +867,25 @@ export const rescheduleAppointment = async (req, res) => {
 
     const formattedPatient = populatedAppointment.patient_id || {};
     const formattedUser = formattedPatient.user_id || {};
+
+    // Notify patient about rescheduling
+    if (formattedUser._id) {
+        console.log(`[Appointment] Notifying patient ${formattedUser._id} about rescheduling`);
+        await notifyUser({
+          recipientUserId: formattedUser._id,
+          type: "APPOINTMENT_RESCHEDULED",
+          title: "Appointment Rescheduled",
+          body: `Your appointment with Dr. ${doctor?.user_id?.name || "Doctor"} has been rescheduled to ${new Date(appointment.start_time).toLocaleString()}`,
+          data: { appointmentId: appointment._id },
+          socketEvent: "appointment:updated",
+          socketPayload: {
+            appointmentId: appointment._id,
+            status: "pending",
+            start_time: appointment.start_time,
+            doctorName: doctor?.user_id?.name
+          }
+        });
+    }
 
     const responseAppointment = {
         ...populatedAppointment,

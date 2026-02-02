@@ -10,14 +10,33 @@ let firebaseApp = null;
 
 /**
  * Initialize Firebase Admin SDK
- * Looks for service account JSON at:
- * 1. FIREBASE_SERVICE_ACCOUNT_PATH env var
- * 2. src/config/firebase-service-account.json
+ * Priority:
+ * 1. Environment variables (FIREBASE_PROJECT_ID, FIREBASE_PRIVATE_KEY, FIREBASE_CLIENT_EMAIL)
+ * 2. FIREBASE_SERVICE_ACCOUNT_PATH env var
+ * 3. src/config/firebase-service-account.json file
  */
 export const initFirebase = () => {
   if (firebaseApp) return firebaseApp;
 
   try {
+    // Option 1: Use environment variables (recommended for Vercel)
+    if (process.env.FIREBASE_PROJECT_ID && process.env.FIREBASE_PRIVATE_KEY && process.env.FIREBASE_CLIENT_EMAIL) {
+      const serviceAccount = {
+        type: "service_account",
+        project_id: process.env.FIREBASE_PROJECT_ID,
+        private_key: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n'),
+        client_email: process.env.FIREBASE_CLIENT_EMAIL,
+      };
+
+      firebaseApp = admin.initializeApp({
+        credential: admin.credential.cert(serviceAccount)
+      });
+      
+      console.log("[Firebase] Admin SDK initialized from environment variables");
+      return firebaseApp;
+    }
+
+    // Option 2: Use service account file
     const serviceAccountPath = process.env.FIREBASE_SERVICE_ACCOUNT_PATH 
       || path.resolve(__dirname, "firebase-service-account.json");
 
@@ -28,10 +47,10 @@ export const initFirebase = () => {
         credential: admin.credential.cert(serviceAccount)
       });
       
-      console.log("[Firebase] Admin SDK initialized successfully");
+      console.log("[Firebase] Admin SDK initialized from file");
     } else {
-      console.warn("[Firebase] Service account file not found. Push notifications disabled.");
-      console.warn(`[Firebase] Expected path: ${serviceAccountPath}`);
+      console.warn("[Firebase] No Firebase credentials found. Push notifications disabled.");
+      console.warn("[Firebase] Set FIREBASE_PROJECT_ID, FIREBASE_PRIVATE_KEY, and FIREBASE_CLIENT_EMAIL env vars.");
     }
   } catch (err) {
     console.error("[Firebase] Failed to initialize:", err.message);

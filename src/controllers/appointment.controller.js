@@ -311,6 +311,9 @@ export const createAppointment = async (req, res) => {
       // Format time for notifications and emails
       const emailTime = appointment.start_time.toLocaleString('en-US', { 
           timeZone: clinic?.timezone || "Africa/Cairo",
+          weekday: 'short',
+          month: 'short',
+          day: 'numeric',
           hour: 'numeric',
           minute: 'numeric',
           hour12: true 

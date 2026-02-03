@@ -8,12 +8,26 @@ let io = null;
  * @param {http.Server} server - HTTP server instance
  */
 export const initSocket = (server) => {
+  if (io) return io;
+  
+  // Vercel/Serverless hack: Check if IO is already attached to the HTTP server
+  if (server.io) {
+    console.log("[Socket] Reusing existing Socket.io instance");
+    io = server.io;
+    return io;
+  }
+
   io = new Server(server, {
+    path: "/socket.io", // Explicit path often helps
+    addTrailingSlash: false,
     cors: {
       origin: "*",
       methods: ["GET", "POST"]
     }
   });
+  
+  // Attach to server for persistence across lambda invocations in same container
+  server.io = io;
 
   // JWT Authentication Middleware
   io.use((socket, next) => {

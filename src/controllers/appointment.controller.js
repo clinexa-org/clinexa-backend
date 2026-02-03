@@ -7,6 +7,7 @@ import { success, error } from "../utils/response.js";
 
 import { sendEmail } from "../services/email.service.js";
 import {
+  appointmentCreatedTemplate,
   appointmentConfirmedTemplate,
   appointmentCancelledTemplate,
   patientCancelledAppointmentTemplate

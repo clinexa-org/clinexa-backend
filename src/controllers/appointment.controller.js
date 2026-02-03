@@ -7,9 +7,9 @@ import { success, error } from "../utils/response.js";
 
 import { sendEmail } from "../services/email.service.js";
 import {
-  appointmentCreatedTemplate,
   appointmentConfirmedTemplate,
-  appointmentCancelledTemplate
+  appointmentCancelledTemplate,
+  patientCancelledAppointmentTemplate
 } from "../services/email.templates.js";
 
 
@@ -632,10 +632,7 @@ export const cancelAppointment = async (req, res) => {
         return error(res, "You cannot cancel this appointment", 403);
       }
       
-      // CONFIRMATION CHECK: Patients cannot cancel confirmed appointments
-      if (appointment.status === "confirmed") {
-        return error(res, "Confirmed appointments cannot be cancelled by patients. Please contact the clinic.", 403);
-      }
+      // Removed restriction: Patients CAN now cancel confirmed appointments
     } else if (req.user.role === "doctor") {
       const doctor = await Doctor.findOne({ user_id: req.user.id });
       if (!doctor || appointment.doctor_id.toString() !== doctor._id.toString()) {
@@ -649,40 +646,85 @@ export const cancelAppointment = async (req, res) => {
     appointment.cancellationReason = reason || null;
     await appointment.save();
 
+    // Fetch details for notifications
     const patient = await Patient.findById(appointment.patient_id).populate("user_id");
-
-    if (patient?.user_id?.email) {
-      await sendEmail({
-        to: patient.user_id.email,
-        subject: "Appointment Cancelled",
-        html: appointmentCancelledTemplate({
-          date: appointment.start_time.toLocaleString()
-        })
-      });
-    }
-
-    // Notify patient via push + socket
     const doctor = await Doctor.findById(appointment.doctor_id).populate("user_id");
-    if (patient?.user_id?._id) {
-      console.log(`[Appointment] Notifying patient ${patient.user_id._id} about cancellation`);
-      await notifyUser({
-        recipientUserId: patient.user_id._id,
-        type: "APPOINTMENT_CANCELLED",
-        title: "Appointment Cancelled",
-        body: `Your appointment with Dr. ${doctor?.user_id?.name || "Doctor"} has been cancelled`,
-        data: { appointmentId: appointment._id },
-        socketEvent: "appointment:updated",
-        socketPayload: {
-          appointmentId: appointment._id,
-          status: "cancelled",
-          start_time: appointment.start_time,
-          cancellationReason: appointment.cancellationReason
-        }
-      });
-    } else {
-        console.warn(`[Appointment] Cannot notify patient - user_id not found on patient record`);
-    }
+    const clinic = await Clinic.findById(appointment.clinic_id);
 
+    const emailTime = appointment.start_time.toLocaleString('en-US', { 
+        timeZone: clinic?.timezone || "Africa/Cairo",
+        weekday: 'short',
+        month: 'short',
+        day: 'numeric',
+        hour: 'numeric',
+        minute: 'numeric',
+        hour12: true 
+    });
+
+    // --- NOTIFICATION LOGIC (Bidirectional) ---
+    
+    if (req.user.role === "patient") {
+        // CASE A: Patient Cancelled -> Notify Doctor
+        if (doctor?.user_id?.email) {
+            await sendEmail({
+                to: doctor.user_id.email,
+                subject: "Appointment Cancelled by Patient",
+                html: patientCancelledAppointmentTemplate({
+                    patientName: patient?.user_id?.name || "Patient",
+                    date: emailTime,
+                    reason: reason
+                })
+            });
+        }
+
+        if (doctor?.user_id?._id) {
+            console.log(`[Appointment] Notifying doctor ${doctor.user_id._id} about cancellation by patient`);
+            await notifyUser({
+                recipientUserId: doctor.user_id._id,
+                type: "APPOINTMENT_CANCELLED",
+                title: "Appointment Cancelled",
+                body: `Patient ${patient?.user_id?.name || "A patient"} has cancelled their appointment for ${emailTime}`,
+                data: { appointmentId: appointment._id },
+                socketEvent: "appointment:updated",
+                socketPayload: {
+                    appointmentId: appointment._id,
+                    status: "cancelled",
+                    start_time: appointment.start_time,
+                    cancellationReason: appointment.cancellationReason
+                }
+            });
+        }
+
+    } else {
+        // CASE B: Doctor/Admin Cancelled -> Notify Patient
+        if (patient?.user_id?.email) {
+            await sendEmail({
+                to: patient.user_id.email,
+                subject: "Appointment Cancelled",
+                html: appointmentCancelledTemplate({
+                    date: emailTime
+                })
+            });
+        }
+
+        if (patient?.user_id?._id) {
+            console.log(`[Appointment] Notifying patient ${patient.user_id._id} about cancellation`);
+            await notifyUser({
+                recipientUserId: patient.user_id._id,
+                type: "APPOINTMENT_CANCELLED",
+                title: "Appointment Cancelled",
+                body: `Your appointment with Dr. ${doctor?.user_id?.name || "Doctor"} has been cancelled`,
+                data: { appointmentId: appointment._id },
+                socketEvent: "appointment:updated",
+                socketPayload: {
+                    appointmentId: appointment._id,
+                    status: "cancelled",
+                    start_time: appointment.start_time,
+                    cancellationReason: appointment.cancellationReason
+                }
+            });
+        }
+    }
 
     await appointment.populate("cancelledBy", "name email role");
 

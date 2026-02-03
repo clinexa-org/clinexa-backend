@@ -112,9 +112,9 @@ export const patientCancelledAppointmentTemplate = ({ patientName, date, reason 
       <div style="background-color: #fadbd8; padding: 15px; border-radius: 5px; margin: 20px 0; border-left: 4px solid #e74c3c;">
         <p style="margin: 0; color: #c0392b;">📅 <strong>Cancelled Date:</strong></p>
         <p style="margin: 5px 0 0 0; font-size: 18px; color: #2c3e50;"><strong>${date}</strong></p>
-        \${reason ? `
+        ${reason ? `
         <p style="margin: 15px 0 0 0; color: #c0392b;">📝 <strong>Reason:</strong></p>
-        <p style="margin: 5px 0 0 0; font-size: 16px; color: #2c3e50;">\${reason}</p>
+        <p style="margin: 5px 0 0 0; font-size: 16px; color: #2c3e50;">${reason}</p>
         ` : ''}
       </div>
       <p style="font-size: 14px; color: #7f8c8d; margin-top: 30px;">

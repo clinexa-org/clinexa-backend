@@ -98,3 +98,33 @@ export const passwordResetOtpTemplate = ({ otp, expiresInMinutes }) => `
     </div>
   </div>
 `;
+
+// Template للإيميل اللي بيروح للدكتور لما مريض يلغي الموعد
+export const patientCancelledAppointmentTemplate = ({ patientName, date, reason }) => `
+  <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f4f4f4;">
+    <div style="background-color: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+      <h2 style="color: #e74c3c; border-bottom: 3px solid #e74c3c; padding-bottom: 10px;">
+        ⚠️ Appointment Cancelled by Patient
+      </h2>
+      <p style="font-size: 16px; color: #555; line-height: 1.6;">
+        Patient <strong style="color: #2c3e50;">${patientName}</strong> has cancelled their appointment.
+      </p>
+      <div style="background-color: #fadbd8; padding: 15px; border-radius: 5px; margin: 20px 0; border-left: 4px solid #e74c3c;">
+        <p style="margin: 0; color: #c0392b;">📅 <strong>Cancelled Date:</strong></p>
+        <p style="margin: 5px 0 0 0; font-size: 18px; color: #2c3e50;"><strong>${date}</strong></p>
+        \${reason ? `
+        <p style="margin: 15px 0 0 0; color: #c0392b;">📝 <strong>Reason:</strong></p>
+        <p style="margin: 5px 0 0 0; font-size: 16px; color: #2c3e50;">\${reason}</p>
+        ` : ''}
+      </div>
+      <p style="font-size: 14px; color: #7f8c8d; margin-top: 30px;">
+        The slot is now available for other patients to book.
+      </p>
+      <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #ecf0f1;">
+        <p style="font-size: 12px; color: #95a5a6; margin: 0;">
+          This is an automated message from Clinexa Clinic System.
+        </p>
+      </div>
+    </div>
+  </div>
+`;

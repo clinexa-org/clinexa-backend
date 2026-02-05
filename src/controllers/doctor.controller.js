@@ -106,7 +106,7 @@ export const getDoctorStats = async (req, res) => {
     const { month } = req.query;
     const query = { 
       doctor_id: doctor._id,
-      status: { $ne: "cancelled" }
+      // Status filter will be applied individually below
     };
 
     if (month) {
@@ -122,15 +122,29 @@ export const getDoctorStats = async (req, res) => {
       query.start_time = { $gte: startDate, $lt: endDate };
     }
 
-    const appointmentsCount = await Appointment.countDocuments(query);
+    // Parallel queries for stats
+    const [
+      totalAppointments,
+      pendingAppointments,
+      completedAppointments,
+      confirmedAppointments,
+      cancelledAppointments,
+      patients
+    ] = await Promise.all([
+      Appointment.countDocuments({ ...query, status: { $ne: "cancelled" } }),
+      Appointment.countDocuments({ ...query, status: "pending" }),
+      Appointment.countDocuments({ ...query, status: "completed" }),
+      Appointment.countDocuments({ ...query, status: "confirmed" }),
+      Appointment.countDocuments({ ...query, status: "cancelled" }),
+      Appointment.distinct("patient_id", { ...query, status: { $ne: "cancelled" } })
+    ]);
     
-    // Count unique patients for this doctor (optionally within the month)
-    // If month is provided, the query already includes the date range
-    const patients = await Appointment.distinct("patient_id", query);
-    
-    // Basic stats for now
     return success(res, {
-      appointments: appointmentsCount,
+      appointments: totalAppointments,
+      pending: pendingAppointments,
+      completed: completedAppointments,
+      confirmed: confirmedAppointments,
+      cancelled: cancelledAppointments,
       patients: patients.length,
       rating: 4.9, // Placeholder
       reviews: 24  // Placeholder

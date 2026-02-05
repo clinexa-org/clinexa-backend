@@ -43,11 +43,18 @@ export const initFirebase = () => {
         client_email: process.env.FIREBASE_CLIENT_EMAIL,
       };
 
-      firebaseApp = admin.initializeApp({
+      const config = {
         credential: admin.credential.cert(serviceAccount)
-      });
+      };
+
+      if (process.env.FIREBASE_DATABASE_URL) {
+        config.databaseURL = process.env.FIREBASE_DATABASE_URL;
+      }
+
+      firebaseApp = admin.initializeApp(config);
       
       console.log("[Firebase] Admin SDK initialized from environment variables ✓");
+      if (config.databaseURL) console.log("[Firebase] Realtime Database configured ✓");
       return firebaseApp;
     }
 

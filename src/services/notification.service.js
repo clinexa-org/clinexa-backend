@@ -134,7 +134,28 @@ export const notifyUser = async ({
   // 2. Send push notification
   await sendPushToUser(recipientUserId, { title, body, data });
 
-  // 3. Emit socket event (if specified)
+  // 3. Update Realtime Database (for foreground updates)
+  // This replaces/augments socket.io dependent on environment
+  try {
+    const admin = getFirebaseAdmin();
+    if (admin && admin.database) {
+       // Using push() generates a unique ID
+       await admin.database().ref(`notifications/${recipientUserId}`).push({
+         notificationId: notification?._id?.toString(),
+         type,
+         title,
+         body,
+         data,
+         createdAt: new Date().toISOString(),
+         read: false
+       });
+       console.log(`[RTDB] Notification written for user ${recipientUserId}`);
+    }
+  } catch (error) {
+    console.error("[RTDB] Failed to write notification:", error.message);
+  }
+
+  // 4. Emit socket event (legacy/socket support)
   if (socketEvent) {
     const payload = socketPayload || { 
       notificationId: notification?._id,
